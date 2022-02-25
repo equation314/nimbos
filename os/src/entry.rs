@@ -50,7 +50,8 @@ unsafe extern "C" fn _start() -> ! {
     asm!("
         mov     sp, {boot_stack_top}
         bl      {switch_to_el1}
-        b       {rust_main}",
+        bl      {rust_main}
+        b       .",
         boot_stack_top = in(reg) BOOT_STACK.as_ptr_range().end,
         switch_to_el1 = sym switch_to_el1,
         rust_main = sym crate::rust_main,
