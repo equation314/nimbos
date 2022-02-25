@@ -7,3 +7,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tock-registers = "0.7"
+cortex-a = "7.0"
