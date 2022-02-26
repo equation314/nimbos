@@ -7,7 +7,7 @@ use core::arch::global_asm;
 use cortex_a::registers::{ESR_EL1, FAR_EL1, VBAR_EL1};
 use tock_registers::interfaces::{Readable, Writeable};
 
-use crate::syscall::syscall;
+use crate::{batch::run_next_app, syscall::syscall};
 
 global_asm!(include_str!("trap.S"));
 
@@ -50,20 +50,34 @@ fn invalid_exception(cx: &mut TrapContext, kind: TrapKind, source: TrapSource) {
 fn handle_sync_exception(cx: &mut TrapContext) {
     let esr = ESR_EL1.extract();
     match esr.read_as_enum(ESR_EL1::EC) {
+        Some(ESR_EL1::EC::Value::Unknown) => {
+            println!("[kernel] Unknown exception @ {:#x}", cx.elr);
+            run_next_app();
+        }
         Some(ESR_EL1::EC::Value::SVC64) => {
             cx.x[0] = syscall(cx.x[8], [cx.x[0], cx.x[1], cx.x[2]]) as usize
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
-            println!("Data Abort @ {:#x}, FAR = {:#x}", cx.elr, FAR_EL1.get());
+            let iss = esr.read(ESR_EL1::ISS);
+            println!(
+                "[kernel] Data Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}",
+                cx.elr,
+                FAR_EL1.get(),
+                iss
+            );
+            run_next_app();
         }
         Some(ESR_EL1::EC::Value::InstrAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
+            let iss = esr.read(ESR_EL1::ISS);
             println!(
-                "Instruction Abort @ {:#x}, FAR = {:#x}",
+                "[kernel] Instruction Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}",
                 cx.elr,
-                FAR_EL1.get()
+                FAR_EL1.get(),
+                iss
             );
+            run_next_app();
         }
         _ => {
             panic!(

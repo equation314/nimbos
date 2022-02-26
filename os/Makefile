@@ -45,10 +45,12 @@ $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
 kernel:
+	@cd ../user && make build
 	@echo Arch: $(ARCH), Platform: $(BOARD)
 	cargo build $(BUILD_ARGS)
 
 clean:
+	@cd ../user && make clean
 	@cargo clean
 
 disasm:
