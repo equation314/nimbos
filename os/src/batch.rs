@@ -6,16 +6,18 @@ static USER_STACK: [u8; USER_STACK_SIZE] = [0; USER_STACK_SIZE];
 
 fn test_app() {
     println!("From user space!");
+    let s = "Hello, world!\n";
+    let ret: usize;
     unsafe {
         core::arch::asm!(
             "svc #0",
-            in("x0") 0x233,
-            in("x1") 0x666,
-            in("x2") 0x888,
-            in("x3") 0x999,
+            in("x8") 64,
+            inlateout("x0") 1usize => ret,
+            in("x1") s.as_ptr(),
+            in("x2") s.len(),
         )
     }
-    println!("Syscall OK!");
+    println!("Syscall returns {}!", ret);
     loop {}
 }
 

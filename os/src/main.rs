@@ -11,6 +11,7 @@ mod entry;
 mod lang_items;
 mod pl011;
 mod psci;
+mod syscall;
 mod trap;
 
 fn clear_bss() {

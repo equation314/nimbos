@@ -7,6 +7,8 @@ use core::arch::global_asm;
 use cortex_a::registers::{ESR_EL1, FAR_EL1, VBAR_EL1};
 use tock_registers::interfaces::{Readable, Writeable};
 
+use crate::syscall::syscall;
+
 global_asm!(include_str!("trap.S"));
 
 pub fn init() {
@@ -49,7 +51,7 @@ fn handle_sync_exception(cx: &mut TrapContext) {
     let esr = ESR_EL1.extract();
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::SVC64) => {
-            println!("Syscall: {:#x?}", cx);
+            cx.x[0] = syscall(cx.x[8], [cx.x[0], cx.x[1], cx.x[2]]) as usize
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
