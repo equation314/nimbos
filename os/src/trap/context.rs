@@ -4,28 +4,28 @@ use cortex_a::registers::SPSR_EL1;
 
 #[repr(C)]
 #[derive(Debug, Default)]
-pub struct TrapContext {
-    // General-purpose registers (X0..X30).
-    pub x: [usize; 31],
-    // User Stack Pointer (SP_EL0).
-    pub usp: usize,
-    // Exception Link Register (ELR_EL1).
-    pub elr: usize,
-    // Saved Process Status Register (SPSR_EL1).
-    pub spsr: usize,
+pub struct TrapFrame {
+    /// General-purpose registers (R0..R30).
+    pub r: [u64; 31],
+    /// User Stack Pointer (SP_EL0).
+    pub usp: u64,
+    /// Exception Link Register (ELR_EL1).
+    pub elr: u64,
+    /// Saved Process Status Register (SPSR_EL1).
+    pub spsr: u64,
 }
 
-impl TrapContext {
+impl TrapFrame {
     pub fn app_init_context(entry: usize, ustack_top: usize) -> Self {
         Self {
-            usp: ustack_top,
-            elr: entry,
+            usp: ustack_top as _,
+            elr: entry as _,
             spsr: (SPSR_EL1::M::EL0t
                 + SPSR_EL1::D::Masked
                 + SPSR_EL1::A::Masked
                 + SPSR_EL1::I::Masked
                 + SPSR_EL1::F::Masked)
-                .value as _,
+                .value,
             ..Default::default()
         }
     }

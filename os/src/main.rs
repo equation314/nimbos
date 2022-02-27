@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(asm_sym)]
 #![feature(panic_info_message)]
+#![feature(const_maybe_uninit_zeroed)]
 
 #[macro_use]
 mod console;
@@ -13,6 +14,7 @@ mod loader;
 mod pl011;
 mod psci;
 mod syscall;
+mod task;
 mod trap;
 
 fn clear_bss() {
@@ -31,5 +33,6 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     trap::init();
     batch::init();
-    batch::run_next_app();
+    // batch::run_next_app();
+    task::run();
 }

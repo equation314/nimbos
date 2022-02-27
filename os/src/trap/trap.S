@@ -77,25 +77,25 @@
 .section .text
 .p2align 11
 exception_vector_base:
-    # current EL, with SP_EL0
+    // current EL, with SP_EL0
     INVALID_EXCP 0 0
     INVALID_EXCP 1 0
     INVALID_EXCP 2 0
     INVALID_EXCP 3 0
 
-    # current EL, with SP_ELx
+    // current EL, with SP_ELx
     HANDLE_SYNC
     HANDLE_IRQ
     INVALID_EXCP 2 1
     INVALID_EXCP 3 1
 
-    # lower EL, aarch64
+    // lower EL, aarch64
     HANDLE_SYNC
     HANDLE_IRQ
     INVALID_EXCP 2 2
     INVALID_EXCP 3 2
 
-    # lower EL, aarch32
+    // lower EL, aarch32
     INVALID_EXCP 0 3
     INVALID_EXCP 1 3
     INVALID_EXCP 2 3

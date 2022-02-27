@@ -1,6 +1,6 @@
 mod context;
 
-pub use context::TrapContext;
+pub use context::TrapFrame;
 
 use core::arch::global_asm;
 
@@ -15,7 +15,7 @@ pub fn init() {
     extern "C" {
         fn exception_vector_base();
     }
-    VBAR_EL1.set(exception_vector_base as u64);
+    VBAR_EL1.set(exception_vector_base as usize as _);
 }
 
 #[repr(u8)]
@@ -23,8 +23,8 @@ pub fn init() {
 #[allow(dead_code)]
 enum TrapKind {
     Synchronous = 0,
-    IRQ = 1,
-    FIQ = 2,
+    Irq = 1,
+    Fiq = 2,
     SError = 3,
 }
 
@@ -39,7 +39,7 @@ enum TrapSource {
 }
 
 #[no_mangle]
-fn invalid_exception(cx: &mut TrapContext, kind: TrapKind, source: TrapSource) {
+fn invalid_exception(cx: &mut TrapFrame, kind: TrapKind, source: TrapSource) {
     panic!(
         "Invalid exception {:?} from {:?}:\n{:#x?}",
         kind, source, cx
@@ -47,7 +47,7 @@ fn invalid_exception(cx: &mut TrapContext, kind: TrapKind, source: TrapSource) {
 }
 
 #[no_mangle]
-fn handle_sync_exception(cx: &mut TrapContext) {
+fn handle_sync_exception(cx: &mut TrapFrame) {
     let esr = ESR_EL1.extract();
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
@@ -55,7 +55,7 @@ fn handle_sync_exception(cx: &mut TrapContext) {
             run_next_app();
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
-            cx.x[0] = syscall(cx.x[8], [cx.x[0], cx.x[1], cx.x[2]]) as usize
+            cx.r[0] = syscall(cx.r[8] as _, [cx.r[0] as _, cx.r[1] as _, cx.r[2] as _]) as u64
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
@@ -92,6 +92,6 @@ fn handle_sync_exception(cx: &mut TrapContext) {
 }
 
 #[no_mangle]
-fn handle_irq_exception(_cx: &mut TrapContext) -> ! {
+fn handle_irq_exception(_cx: &mut TrapFrame) -> ! {
     panic!("Unsupported IRQ exception!");
 }

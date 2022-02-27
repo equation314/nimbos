@@ -1,3 +1,30 @@
+use core::ops::Deref;
+
+use crate::config::{KERNEL_STACK_SIZE, USER_STACK_SIZE};
+
+#[repr(align(4096))]
+pub struct Stack<const N: usize>([u8; N]);
+
+impl<const N: usize> Stack<N> {
+    const fn default() -> Self {
+        Self([0; N])
+    }
+
+    pub fn top(&self) -> usize {
+        self.0.as_ptr_range().end as usize
+    }
+}
+
+impl<const N: usize> Deref for Stack<N> {
+    type Target = [u8; N];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub static KERNEL_STACK: Stack<KERNEL_STACK_SIZE> = Stack::default();
+pub static USER_STACK: Stack<USER_STACK_SIZE> = Stack::default();
+
 extern "C" {
     fn _app_count();
 }
