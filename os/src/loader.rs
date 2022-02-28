@@ -1,12 +1,14 @@
+use core::arch::asm;
 use core::ops::Deref;
 
-use crate::config::{KERNEL_STACK_SIZE, USER_STACK_SIZE};
+use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, MAX_APP_NUM, USER_STACK_SIZE};
 
 #[repr(align(4096))]
+#[derive(Clone, Copy)]
 pub struct Stack<const N: usize>([u8; N]);
 
 impl<const N: usize> Stack<N> {
-    const fn default() -> Self {
+    pub const fn default() -> Self {
         Self([0; N])
     }
 
@@ -22,8 +24,7 @@ impl<const N: usize> Deref for Stack<N> {
     }
 }
 
-pub static KERNEL_STACK: Stack<KERNEL_STACK_SIZE> = Stack::default();
-pub static USER_STACK: Stack<USER_STACK_SIZE> = Stack::default();
+pub static USER_STACK: [Stack<USER_STACK_SIZE>; MAX_APP_NUM] = [Stack::default(); MAX_APP_NUM];
 
 extern "C" {
     fn _app_count();
@@ -43,4 +44,21 @@ pub fn get_app_data(app_id: usize) -> &'static [u8] {
         assert!(app_size < crate::config::APP_SIZE_LIMIT);
         core::slice::from_raw_parts(app_start as *const u8, app_size)
     }
+}
+
+pub fn load_app(app_id: usize) -> (usize, usize) {
+    assert!(app_id < get_app_count());
+    let entry = APP_BASE_ADDRESS + app_id * APP_SIZE_LIMIT;
+
+    // clear app area
+    unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, APP_SIZE_LIMIT).fill(0) };
+    // copy app binary
+    let app_data = get_app_data(app_id);
+    let app_dst = unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, app_data.len()) };
+    app_dst.copy_from_slice(app_data);
+    // clear icache
+    unsafe { asm!("ic iallu; dsb sy; isb") };
+
+    let ustack_top = USER_STACK[app_id].top();
+    (entry, ustack_top)
 }

@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TaskContext {
     pub sp: u64,
     pub tpidr_el0: u64,
@@ -20,6 +20,10 @@ pub struct TaskContext {
 }
 
 impl TaskContext {
+    pub const fn default() -> Self {
+        unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
+    }
+
     pub fn init(&mut self, entry: usize, kstack_top: usize) {
         self.sp = kstack_top as u64;
         self.lr = entry as u64;

@@ -7,7 +7,7 @@ use core::arch::global_asm;
 use cortex_a::registers::{ESR_EL1, FAR_EL1, VBAR_EL1};
 use tock_registers::interfaces::{Readable, Writeable};
 
-use crate::{batch::run_next_app, syscall::syscall};
+use crate::{syscall::syscall, task::current_task};
 
 global_asm!(include_str!("trap.S"));
 
@@ -52,7 +52,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
             println!("[kernel] Unknown exception @ {:#x}", cx.elr);
-            run_next_app();
+            current_task().exit();
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
             cx.r[0] = syscall(cx.r[8] as _, [cx.r[0] as _, cx.r[1] as _, cx.r[2] as _]) as u64
@@ -66,7 +66,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
                 FAR_EL1.get(),
                 iss
             );
-            run_next_app();
+            current_task().exit();
         }
         Some(ESR_EL1::EC::Value::InstrAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
@@ -77,7 +77,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
                 FAR_EL1.get(),
                 iss
             );
-            run_next_app();
+            current_task().exit();
         }
         _ => {
             panic!(

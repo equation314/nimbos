@@ -6,7 +6,6 @@
 
 #[macro_use]
 mod console;
-mod batch;
 mod config;
 mod entry;
 mod lang_items;
@@ -32,7 +31,7 @@ pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
     trap::init();
-    batch::init();
+    task::init();
     // batch::run_next_app();
     task::run();
 }
