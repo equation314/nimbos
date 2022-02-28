@@ -7,6 +7,7 @@ use self::manager::TASK_MANAGER;
 use self::switch::TaskContext;
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader::Stack;
+use crate::trap::TrapFrame;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TaskStatus {
@@ -16,13 +17,19 @@ pub enum TaskStatus {
     Exited,
 }
 
+#[derive(Debug)]
+struct TaskEntryStatus {
+    pc: usize,
+    sp: usize,
+    arg: usize,
+}
+
 pub struct Task {
     id: usize,
     status: TaskStatus,
     ctx: TaskContext,
     kstack: Stack<KERNEL_STACK_SIZE>,
-    entry: usize,
-    args: usize,
+    entry: TaskEntryStatus,
 }
 
 impl Task {
@@ -32,16 +39,33 @@ impl Task {
             status: TaskStatus::UnInit,
             ctx: TaskContext::default(),
             kstack: Stack::default(),
-            entry: 0,
-            args: 0,
+            entry: TaskEntryStatus {
+                pc: 0,
+                sp: 0,
+                arg: 0,
+            },
         }
     }
 
-    pub fn init_kernel(&mut self, id: usize, entry: fn(usize) -> usize, args: usize) {
+    pub fn init_kernel(&mut self, id: usize, entry: fn(usize) -> usize, arg: usize) {
         self.id = id;
-        self.entry = entry as _;
-        self.args = args;
-        self.ctx.init(task_start_fn as _, self.kstack.top());
+        self.entry = TaskEntryStatus {
+            pc: entry as usize,
+            arg,
+            sp: 0,
+        };
+        self.ctx.init(start_kernel_task as _, self.kstack.top());
+        self.status = TaskStatus::Ready;
+    }
+
+    pub fn init_user(&mut self, id: usize, entry: usize, ustack_top: usize) {
+        self.id = id;
+        self.entry = TaskEntryStatus {
+            pc: entry as usize,
+            arg: 0,
+            sp: ustack_top,
+        };
+        self.ctx.init(start_user_task as _, self.kstack.top());
         self.status = TaskStatus::Ready;
     }
 
@@ -59,15 +83,21 @@ impl Task {
     pub fn exit(&mut self) -> ! {
         self.status = TaskStatus::Exited;
         resched();
-        unreachable!("Task exited!");
+        unreachable!("task exited!");
     }
 }
 
-fn task_start_fn() -> ! {
+fn start_kernel_task() -> ! {
     let task = current_task();
-    let entry: fn(usize) -> usize = unsafe { core::mem::transmute(task.entry) };
-    entry(task.args);
+    let entry: fn(usize) -> usize = unsafe { core::mem::transmute(task.entry.pc) };
+    entry(task.entry.arg);
     task.exit();
+}
+
+fn start_user_task() -> ! {
+    let task = current_task();
+    let tf = TrapFrame::new_user(task.entry.pc, task.entry.sp);
+    unsafe { tf.exec(task.kstack.top()) };
 }
 
 pub fn set_current_task(t: &Task) {

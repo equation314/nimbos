@@ -16,7 +16,7 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn app_init_context(entry: usize, ustack_top: usize) -> Self {
+    pub fn new_user(entry: usize, ustack_top: usize) -> Self {
         Self {
             usp: ustack_top as _,
             elr: entry as _,

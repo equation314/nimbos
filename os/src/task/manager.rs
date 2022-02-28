@@ -1,5 +1,6 @@
 use super::{Task, TaskStatus};
 use crate::config::MAX_APP_NUM;
+use crate::loader;
 
 pub struct TaskManager {
     task_count: usize,
@@ -16,23 +17,28 @@ impl TaskManager {
     }
 
     pub fn init(&mut self) {
-        self.task_count = 2;
+        let kernel_task_count = 2;
+        self.task_count = loader::get_app_count() + kernel_task_count;
         self.tasks[0].init_kernel(
             0,
-            |args| {
-                println!("test kernel task 0: arg = {:#x}", args);
+            |arg| {
+                println!("test kernel task 0: arg = {:#x}", arg);
                 0
             },
             0xdead,
         );
         self.tasks[1].init_kernel(
             1,
-            |args| {
-                println!("test kernel task 1: arg = {:#x}", args);
+            |arg| {
+                println!("test kernel task 1: arg = {:#x}", arg);
                 0
             },
             0xbeef,
-        )
+        );
+        for i in 0..self.task_count - kernel_task_count {
+            let (entry, ustack_top) = loader::load_app(i);
+            self.tasks[i + kernel_task_count].init_user(i + kernel_task_count, entry, ustack_top);
+        }
     }
 
     pub fn pick_next_task(&mut self) -> Option<&mut Task> {

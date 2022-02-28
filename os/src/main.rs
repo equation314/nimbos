@@ -32,6 +32,5 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     trap::init();
     task::init();
-    // batch::run_next_app();
     task::run();
 }

@@ -1,7 +1,9 @@
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 use core::ops::Deref;
 
 use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, MAX_APP_NUM, USER_STACK_SIZE};
+
+global_asm!(include_str!("link_app.S"));
 
 #[repr(align(4096))]
 #[derive(Clone, Copy)]
