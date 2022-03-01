@@ -100,6 +100,10 @@ fn start_user_task() -> ! {
     unsafe { tf.exec(task.kstack.top()) };
 }
 
+fn resched() {
+    unsafe { TASK_MANAGER.resched() }
+}
+
 pub fn set_current_task(t: &Task) {
     unsafe { asm!("msr tpidr_el1, {}", in(reg) t) }
 }
@@ -109,16 +113,6 @@ pub fn current_task() -> &'static mut Task {
     unsafe {
         asm!("mrs {}, tpidr_el1", out(reg) addr);
         &mut *(addr as *mut Task)
-    }
-}
-
-pub fn resched() {
-    let curr_task = current_task();
-    assert!(curr_task.status != TaskStatus::Running);
-    if let Some(next_task) = unsafe { TASK_MANAGER.pick_next_task() } {
-        curr_task.switch_to(next_task);
-    } else {
-        panic!("All applications completed!");
     }
 }
 

@@ -1,4 +1,4 @@
-//! ARM Power State Coordination Interface
+//! ARM Power State Coordination Interface.
 
 use core::arch::asm;
 

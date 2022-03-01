@@ -23,9 +23,9 @@ impl TrapFrame {
             spsr: (SPSR_EL1::M::EL0t
                 + SPSR_EL1::D::Masked
                 + SPSR_EL1::A::Masked
-                + SPSR_EL1::I::Masked
+                + SPSR_EL1::I::Unmasked
                 + SPSR_EL1::F::Masked)
-                .value,
+                .value, // enable IRQ, mask others
             ..Default::default()
         }
     }

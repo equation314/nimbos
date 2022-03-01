@@ -8,12 +8,14 @@
 mod console;
 mod config;
 mod entry;
+mod gicv2;
 mod lang_items;
 mod loader;
 mod pl011;
 mod psci;
 mod syscall;
 mod task;
+mod timer;
 mod trap;
 
 fn clear_bss() {
@@ -31,6 +33,10 @@ pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
     trap::init();
+
+    gicv2::init();
+    timer::init();
+
     task::init();
     task::run();
 }

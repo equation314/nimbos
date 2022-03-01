@@ -38,6 +38,12 @@ enum TrapSource {
     LowerAArch32 = 3,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum IrqHandlerResult {
+    Reschedule,
+    NoReschedule,
+}
+
 #[no_mangle]
 fn invalid_exception(cx: &mut TrapFrame, kind: TrapKind, source: TrapSource) {
     panic!(
@@ -92,6 +98,8 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
 }
 
 #[no_mangle]
-fn handle_irq_exception(_cx: &mut TrapFrame) -> ! {
-    panic!("Unsupported IRQ exception!");
+fn handle_irq_exception(_cx: &mut TrapFrame) {
+    if crate::gicv2::handle_irq() == IrqHandlerResult::Reschedule {
+        current_task().yield_now();
+    }
 }

@@ -56,6 +56,16 @@ impl TaskManager {
         }
         None
     }
+
+    pub fn resched(&mut self) {
+        let curr_task = super::current_task();
+        assert!(curr_task.status != TaskStatus::Running);
+        if let Some(next_task) = self.pick_next_task() {
+            curr_task.switch_to(next_task);
+        } else {
+            panic!("All applications completed!");
+        }
+    }
 }
 
 pub(super) static mut TASK_MANAGER: TaskManager = TaskManager::new();
