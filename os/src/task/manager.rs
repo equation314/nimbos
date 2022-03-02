@@ -1,6 +1,7 @@
-use super::{Task, TaskStatus};
+use super::{CurrentTask, Task, TaskStatus};
 use crate::config::MAX_APP_NUM;
-use crate::loader;
+use crate::sync::SpinNoIrqLock;
+use crate::{arch, loader};
 
 pub struct TaskManager {
     task_count: usize,
@@ -41,8 +42,8 @@ impl TaskManager {
         }
     }
 
-    pub fn pick_next_task(&mut self) -> Option<&mut Task> {
-        let current_task = super::current_task();
+    fn pick_next_task(&mut self) -> Option<&mut Task> {
+        let current_task = CurrentTask::get();
         let start = if current_task.status == TaskStatus::UnInit {
             0
         } else {
@@ -58,14 +59,32 @@ impl TaskManager {
     }
 
     pub fn resched(&mut self) {
-        let curr_task = super::current_task();
+        let curr_task = CurrentTask::get_mut();
+        assert!(arch::irqs_disabled());
         assert!(curr_task.status != TaskStatus::Running);
         if let Some(next_task) = self.pick_next_task() {
-            curr_task.switch_to(next_task);
+            assert!(next_task.status != TaskStatus::UnInit);
+            next_task.status = TaskStatus::Running;
+            CurrentTask::set(next_task);
+            unsafe { super::switch::context_switch(&mut curr_task.ctx, &next_task.ctx) };
         } else {
             panic!("All applications completed!");
         }
     }
+
+    pub fn yield_current(&mut self) {
+        let curr_task = CurrentTask::get_mut();
+        assert!(curr_task.status == TaskStatus::Running);
+        curr_task.status = TaskStatus::Ready;
+        self.resched();
+    }
+
+    pub fn exit_current(&mut self, _exit_code: i32) -> ! {
+        let curr_task = CurrentTask::get_mut();
+        curr_task.status = TaskStatus::Exited;
+        self.resched();
+        unreachable!("task exited!");
+    }
 }
 
-pub(super) static mut TASK_MANAGER: TaskManager = TaskManager::new();
+pub(super) static TASK_MANAGER: SpinNoIrqLock<TaskManager> = SpinNoIrqLock::new(TaskManager::new());

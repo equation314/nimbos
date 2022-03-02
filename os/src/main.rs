@@ -6,6 +6,7 @@
 
 #[macro_use]
 mod console;
+mod arch;
 mod config;
 mod entry;
 mod gicv2;
@@ -13,6 +14,7 @@ mod lang_items;
 mod loader;
 mod pl011;
 mod psci;
+mod sync;
 mod syscall;
 mod task;
 mod timer;

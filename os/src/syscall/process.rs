@@ -1,13 +1,13 @@
-use crate::task::current_task;
+use crate::task::CurrentTask;
 use crate::timer::get_time_ms;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     println!("[kernel] Application exited with code {}", exit_code);
-    current_task().exit();
+    CurrentTask::exit(exit_code);
 }
 
 pub fn sys_yield() -> isize {
-    current_task().yield_now();
+    CurrentTask::yield_now();
     0
 }
 

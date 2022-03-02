@@ -1,4 +1,4 @@
-use core::arch::{asm, global_asm};
+use core::arch::global_asm;
 use core::ops::Deref;
 
 use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, MAX_APP_NUM, USER_STACK_SIZE};
@@ -59,7 +59,7 @@ pub fn load_app(app_id: usize) -> (usize, usize) {
     let app_dst = unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, app_data.len()) };
     app_dst.copy_from_slice(app_data);
     // clear icache
-    unsafe { asm!("ic iallu; dsb sy; isb") };
+    crate::arch::flush_icache();
 
     let ustack_top = USER_STACK[app_id].top();
     (entry, ustack_top)

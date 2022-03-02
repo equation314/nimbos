@@ -1,10 +1,9 @@
 mod manager;
 mod switch;
 
-use core::arch::asm;
-
 use self::manager::TASK_MANAGER;
 use self::switch::TaskContext;
+use crate::arch;
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader::Stack;
 use crate::trap::TrapFrame;
@@ -54,7 +53,7 @@ impl Task {
             arg,
             sp: 0,
         };
-        self.ctx.init(start_kernel_task as _, self.kstack.top());
+        self.ctx.init(kernel_task_entry as _, self.kstack.top());
         self.status = TaskStatus::Ready;
     }
 
@@ -65,64 +64,61 @@ impl Task {
             arg: 0,
             sp: ustack_top,
         };
-        self.ctx.init(start_user_task as _, self.kstack.top());
+        self.ctx.init(user_task_entry as _, self.kstack.top());
         self.status = TaskStatus::Ready;
-    }
-
-    pub fn switch_to(&mut self, new_task: &mut Self) {
-        new_task.status = TaskStatus::Running;
-        set_current_task(new_task);
-        unsafe { switch::context_switch(&mut self.ctx, &new_task.ctx) };
-    }
-
-    pub fn yield_now(&mut self) {
-        self.status = TaskStatus::Ready;
-        resched();
-    }
-
-    pub fn exit(&mut self) -> ! {
-        self.status = TaskStatus::Exited;
-        resched();
-        unreachable!("task exited!");
     }
 }
 
-fn start_kernel_task() -> ! {
-    let task = current_task();
-    let entry: fn(usize) -> usize = unsafe { core::mem::transmute(task.entry.pc) };
-    entry(task.entry.arg);
-    task.exit();
+fn kernel_task_entry() -> ! {
+    // release the lock that was implicitly held across the reschedule
+    unsafe { TASK_MANAGER.force_unlock() };
+    arch::enable_irqs();
+    let task = CurrentTask::get();
+    let entry: fn(usize) -> i32 = unsafe { core::mem::transmute(task.entry.pc) };
+    let ret = entry(task.entry.arg);
+    CurrentTask::exit(ret as _);
 }
 
-fn start_user_task() -> ! {
-    let task = current_task();
+fn user_task_entry() -> ! {
+    // release the lock that was implicitly held across the reschedule
+    unsafe { TASK_MANAGER.force_unlock() };
+    assert!(arch::irqs_disabled());
+    let task = CurrentTask::get();
     let tf = TrapFrame::new_user(task.entry.pc, task.entry.sp);
     unsafe { tf.exec(task.kstack.top()) };
 }
 
-fn resched() {
-    unsafe { TASK_MANAGER.resched() }
-}
+pub struct CurrentTask;
 
-pub fn set_current_task(t: &Task) {
-    unsafe { asm!("msr tpidr_el1, {}", in(reg) t) }
-}
+impl CurrentTask {
+    fn get() -> &'static Task {
+        unsafe { &*(arch::thread_pointer() as *const Task) }
+    }
 
-pub fn current_task() -> &'static mut Task {
-    let addr: usize;
-    unsafe {
-        asm!("mrs {}, tpidr_el1", out(reg) addr);
-        &mut *(addr as *mut Task)
+    fn get_mut() -> &'static mut Task {
+        unsafe { &mut *(arch::thread_pointer() as *mut Task) }
+    }
+
+    fn set(task: &Task) {
+        arch::set_thread_pointer(task as *const _ as _);
+    }
+
+    pub fn yield_now() {
+        TASK_MANAGER.lock().yield_current()
+    }
+
+    pub fn exit(exit_code: i32) -> ! {
+        TASK_MANAGER.lock().exit_current(exit_code)
     }
 }
 
 pub fn init() {
-    unsafe { TASK_MANAGER.init() }
+    TASK_MANAGER.lock().init();
 }
 
 pub fn run() -> ! {
     let idle = Task::uninit();
-    set_current_task(&idle);
-    resched();
+    CurrentTask::set(&idle);
+    TASK_MANAGER.lock().resched();
     panic!("No tasks to run!");
 }

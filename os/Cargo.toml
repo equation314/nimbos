@@ -9,4 +9,3 @@ edition = "2021"
 [dependencies]
 tock-registers = "0.7"
 cortex-a = "7.0"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }

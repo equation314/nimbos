@@ -6,6 +6,7 @@ use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 
+use crate::sync::LazyInit;
 use crate::trap::IrqHandlerResult;
 
 const GIC_BASE: usize = 0x0800_0000;
@@ -15,9 +16,7 @@ const GICC_BASE: usize = GIC_BASE + 0x10000;
 const PPI_BASE: usize = 16;
 const SPI_BASE: usize = 32;
 
-lazy_static::lazy_static! {
-    static ref GIC: Gic = Gic::new(GICD_BASE, GICC_BASE);
-}
+static GIC: LazyInit<Gic> = LazyInit::new();
 
 register_structs! {
     #[allow(non_snake_case)]
@@ -193,8 +192,8 @@ impl Gic {
     }
 }
 
-pub fn irq_set_enable(vector: usize, enable: bool) {
-    GIC.set_enable(vector, enable);
+pub fn irq_set_mask(vector: usize, masked: bool) {
+    GIC.set_enable(vector, !masked);
 }
 
 pub fn handle_irq() -> IrqHandlerResult {
@@ -214,5 +213,7 @@ pub fn handle_irq() -> IrqHandlerResult {
 }
 
 pub fn init() {
-    GIC.init();
+    let gic = Gic::new(GICD_BASE, GICC_BASE);
+    gic.init();
+    GIC.init_by(gic);
 }
