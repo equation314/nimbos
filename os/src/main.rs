@@ -2,7 +2,10 @@
 #![no_main]
 #![feature(asm_sym)]
 #![feature(panic_info_message)]
+#![feature(alloc_error_handler)]
 #![feature(const_maybe_uninit_zeroed)]
+
+extern crate alloc;
 
 #[macro_use]
 mod console;
@@ -12,6 +15,7 @@ mod entry;
 mod gicv2;
 mod lang_items;
 mod loader;
+mod mm;
 mod pl011;
 mod psci;
 mod sync;
@@ -34,6 +38,8 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    mm::init();
+    println!("[kernel] back to world!");
     trap::init();
 
     gicv2::init();

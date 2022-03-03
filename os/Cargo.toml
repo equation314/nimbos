@@ -9,3 +9,4 @@ edition = "2021"
 [dependencies]
 tock-registers = "0.7"
 cortex-a = "7.0"
+buddy_system_allocator = { version = "0.8", default-features = false }

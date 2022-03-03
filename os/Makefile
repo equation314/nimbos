@@ -5,7 +5,7 @@ MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 
-BUILD_ARGS := --target $(TARGET) -Zbuild-std=core
+BUILD_ARGS := --target $(TARGET) -Zbuild-std=core,alloc
 ifeq ($(MODE), release)
   BUILD_ARGS += --release
 endif
