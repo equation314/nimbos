@@ -59,7 +59,7 @@ pub fn load_app(app_id: usize) -> (usize, usize) {
     let app_dst = unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, app_data.len()) };
     app_dst.copy_from_slice(app_data);
     // clear icache
-    crate::arch::flush_icache();
+    crate::arch::flush_icache_all();
 
     let ustack_top = USER_STACK[app_id].top();
     (entry, ustack_top)

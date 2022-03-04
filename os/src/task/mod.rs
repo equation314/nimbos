@@ -100,7 +100,7 @@ impl CurrentTask {
     }
 
     fn set(task: &Task) {
-        arch::set_thread_pointer(task as *const _ as _);
+        unsafe { arch::set_thread_pointer(task as *const _ as _) };
     }
 
     pub fn yield_now() {

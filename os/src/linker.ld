@@ -46,6 +46,6 @@ SECTIONS
     ekernel = .;
 
     /DISCARD/ : {
-        *(.eh_frame)
+        *(.eh_frame) *(.eh_frame_hdr)
     }
 }

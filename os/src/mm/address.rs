@@ -3,16 +3,20 @@
 use core::fmt;
 
 use super::PAGE_SIZE;
+use crate::config::KERNEL_ASPACE_BASE;
 
-const PA_16TB_BITS: usize = 44;
+const PA_1TB_BITS: usize = 40;
 const VA_MAX_BITS: usize = 48;
-const TOP_VA_BASE: usize = 0xffff_0000_0000_0000;
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(usize);
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(usize);
+
+const fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
+    VirtAddr::new(paddr.as_usize() + KERNEL_ASPACE_BASE)
+}
 
 impl fmt::Debug for PhysAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -27,11 +31,19 @@ impl fmt::Debug for VirtAddr {
 }
 
 impl PhysAddr {
+    pub const MAX: usize = (1 << PA_1TB_BITS) - 1;
+
     pub const fn new(pa: usize) -> Self {
-        Self(pa & ((1 << PA_16TB_BITS) - 1))
+        Self(pa & Self::MAX)
     }
     pub const fn as_usize(&self) -> usize {
         self.0
+    }
+    pub const fn as_ptr(&self) -> *const u8 {
+        phys_to_virt(*self).as_usize() as _
+    }
+    pub const fn as_mut_ptr(&self) -> *mut u8 {
+        phys_to_virt(*self).as_usize() as _
     }
     pub const fn align_down(&self) -> Self {
         Self(align_down(self.0, PAGE_SIZE))
@@ -48,15 +60,15 @@ impl PhysAddr {
 }
 
 impl VirtAddr {
+    pub const MAX: usize = (1 << VA_MAX_BITS) - 1;
+    pub const TOP_BASE: usize = 0xffff_0000_0000_0000;
+
     pub const fn new(va: usize) -> Self {
         let top_bits = va >> VA_MAX_BITS;
-        if top_bits == 0 {
-            Self(va & ((1 << VA_MAX_BITS) - 1))
-        } else if top_bits == 0xfff {
-            Self(TOP_VA_BASE + (va & ((1 << VA_MAX_BITS) - 1)))
-        } else {
+        if top_bits != 0 && top_bits != 0xffff {
             panic!("invalid VA!")
         }
+        Self(va)
     }
     pub const fn as_usize(&self) -> usize {
         self.0

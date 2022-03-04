@@ -38,9 +38,10 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    trap::init();
     mm::init();
     println!("[kernel] back to world!");
-    trap::init();
+    mm::remap_test();
 
     gicv2::init();
     timer::init();

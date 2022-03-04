@@ -79,12 +79,8 @@ impl PhysFrame {
         self.start_paddr
     }
 
-    fn as_mut_ptr(&self) -> *mut u8 {
-        self.start_paddr.as_usize() as *mut u8
-    }
-
     pub fn zero(&mut self) {
-        unsafe { core::ptr::write_bytes(self.as_mut_ptr(), 0, PAGE_SIZE) }
+        unsafe { core::ptr::write_bytes(self.start_paddr.as_mut_ptr(), 0, PAGE_SIZE) }
     }
 }
 
