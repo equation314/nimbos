@@ -17,7 +17,6 @@ static mut BOOT_PT_L0: [PageTableEntry; 512] = [PageTableEntry::empty(); 512];
 #[link_section = ".data.boot_page_table"]
 static mut BOOT_PT_L1: [PageTableEntry; 512] = [PageTableEntry::empty(); 512];
 
-#[inline(never)]
 unsafe fn switch_to_el1() {
     SPSel.write(SPSel::SP::ELx);
     let current_el = CurrentEL.read(CurrentEL::EL);
@@ -119,6 +118,8 @@ unsafe extern "C" fn _start() -> ! {
         bl      {switch_to_el1}
         bl      {init_boot_page_table}
         bl      {init_mmu}
+        ldr     x8, =boot_stack_top
+        mov     sp, x8
         ldr     x8, ={rust_main}
         br      x8
         b       .",

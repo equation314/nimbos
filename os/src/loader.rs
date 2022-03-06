@@ -1,7 +1,8 @@
 use core::arch::global_asm;
 use core::ops::Deref;
 
-use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, MAX_APP_NUM, USER_STACK_SIZE};
+use crate::config::{APP_BASE_ADDRESS, APP_SIZE_LIMIT, USER_STACK_BASE, USER_STACK_SIZE};
+use crate::mm::{MapArea, MemFlags, MemorySet, PhysAddr, VirtAddr};
 
 global_asm!(include_str!("link_app.S"));
 
@@ -26,8 +27,6 @@ impl<const N: usize> Deref for Stack<N> {
     }
 }
 
-pub static USER_STACK: [Stack<USER_STACK_SIZE>; MAX_APP_NUM] = [Stack::default(); MAX_APP_NUM];
-
 extern "C" {
     fn _app_count();
 }
@@ -48,19 +47,35 @@ pub fn get_app_data(app_id: usize) -> &'static [u8] {
     }
 }
 
-pub fn load_app(app_id: usize) -> (usize, usize) {
+pub fn load_app(app_id: usize) -> (usize, usize, MemorySet) {
     assert!(app_id < get_app_count());
     let entry = APP_BASE_ADDRESS + app_id * APP_SIZE_LIMIT;
+    let entry_ptr = PhysAddr::new(entry).into_vaddr().as_mut_ptr();
 
     // clear app area
-    unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, APP_SIZE_LIMIT).fill(0) };
+    unsafe { core::slice::from_raw_parts_mut(entry_ptr, APP_SIZE_LIMIT).fill(0) };
     // copy app binary
     let app_data = get_app_data(app_id);
-    let app_dst = unsafe { core::slice::from_raw_parts_mut(entry as *mut u8, app_data.len()) };
+    let app_dst = unsafe { core::slice::from_raw_parts_mut(entry_ptr, app_data.len()) };
     app_dst.copy_from_slice(app_data);
     // clear icache
     crate::arch::flush_icache_all();
 
-    let ustack_top = USER_STACK[app_id].top();
-    (entry, ustack_top)
+    let mut ms = MemorySet::new();
+    // text, data, and bss
+    ms.insert(MapArea::new_offset(
+        VirtAddr::new(entry),
+        PhysAddr::new(entry),
+        APP_SIZE_LIMIT,
+        MemFlags::READ | MemFlags::WRITE | MemFlags::EXECUTE | MemFlags::USER,
+    ));
+    // stack
+    ms.insert(MapArea::new_framed(
+        VirtAddr::new(USER_STACK_BASE),
+        USER_STACK_SIZE,
+        MemFlags::READ | MemFlags::WRITE | MemFlags::USER,
+    ));
+
+    let ustack_top = USER_STACK_BASE + USER_STACK_SIZE;
+    (entry, ustack_top, ms)
 }

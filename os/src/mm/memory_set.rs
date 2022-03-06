@@ -1,11 +1,11 @@
+use alloc::collections::btree_map::{BTreeMap, Entry};
+
 use super::address::{phys_to_virt, virt_to_phys};
-use super::{MemFlags, PageTable};
+use super::{MemFlags, PageTable, PhysFrame};
 use crate::arch;
 use crate::config::{MEMORY_END, MMIO_REGIONS};
-use crate::mm::{PhysAddr, VirtAddr, PAGE_SIZE};
+use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
-
-static KERNEL_PAGE_TABLE: LazyInit<PageTable> = LazyInit::new();
 
 extern "C" {
     fn stext();
@@ -21,21 +21,122 @@ extern "C" {
     fn ekernel();
 }
 
+static KERNEL_SPACE: LazyInit<MemorySet> = LazyInit::new();
+
+enum Mapper {
+    Offset(usize),
+    Framed(BTreeMap<VirtAddr, PhysFrame>),
+}
+
+pub struct MapArea {
+    pub start: VirtAddr,
+    pub size: usize,
+    pub flags: MemFlags,
+    mapper: Mapper,
+}
+
+pub struct MemorySet {
+    pt: PageTable,
+    areas: BTreeMap<VirtAddr, MapArea>,
+}
+
+impl MapArea {
+    pub fn new_offset(
+        start_vaddr: VirtAddr,
+        start_paddr: PhysAddr,
+        size: usize,
+        flags: MemFlags,
+    ) -> Self {
+        let start_vaddr = start_vaddr.align_down();
+        let start_paddr = start_paddr.align_down();
+        let offset = start_vaddr.as_usize() - start_paddr.as_usize();
+        Self {
+            start: start_vaddr,
+            size,
+            flags,
+            mapper: Mapper::Offset(offset),
+        }
+    }
+
+    pub fn new_framed(start_vaddr: VirtAddr, size: usize, flags: MemFlags) -> Self {
+        Self {
+            start: start_vaddr,
+            size,
+            flags,
+            mapper: Mapper::Framed(BTreeMap::new()),
+        }
+    }
+
+    pub fn map(&mut self, vaddr: VirtAddr) -> PhysAddr {
+        match &mut self.mapper {
+            Mapper::Offset(off) => PhysAddr::new(vaddr.as_usize() - *off),
+            Mapper::Framed(frames) => match frames.entry(vaddr) {
+                Entry::Occupied(e) => e.get().start_paddr(),
+                Entry::Vacant(e) => e.insert(PhysFrame::alloc().unwrap()).start_paddr(),
+            },
+        }
+    }
+
+    pub fn unmap(&mut self, vaddr: VirtAddr) {
+        if let Mapper::Framed(frames) = &mut self.mapper {
+            frames.remove(&vaddr);
+        }
+    }
+}
+
+impl MemorySet {
+    pub fn new() -> Self {
+        Self {
+            pt: PageTable::new(),
+            areas: BTreeMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, area: MapArea) {
+        if !area.size > 0 {
+            if let Entry::Vacant(e) = self.areas.entry(area.start) {
+                self.pt.map_area(e.insert(area));
+            } else {
+                panic!(
+                    "MemorySet::insert: MepArea starts from {:#x?} is existed!",
+                    area.start
+                );
+            }
+        }
+    }
+
+    pub fn clear(&mut self) {
+        for area in self.areas.values_mut() {
+            self.pt.unmap_area(area);
+        }
+        self.areas.clear();
+    }
+
+    pub unsafe fn activate(&self, is_kernel: bool) {
+        let root = self.pt.root_paddr().as_usize();
+        arch::activate_paging(root, is_kernel);
+    }
+}
+
+impl Drop for MemorySet {
+    fn drop(&mut self) {
+        self.clear();
+    }
+}
+
 pub fn init_paging() {
-    let mut pt = PageTable::new();
+    let mut ms = MemorySet::new();
     let mut map_range = |start: usize, end: usize, flags: MemFlags, name: &str| {
         println!("mapping {}: [{:#x}, {:#x})", name, start, end);
+        assert!(start < end);
         assert!(VirtAddr::new(start).is_aligned());
         assert!(VirtAddr::new(end).is_aligned());
-        let mut vaddr = start;
-        while vaddr < end {
-            pt.map(
-                VirtAddr::new(vaddr),
-                PhysAddr::new(virt_to_phys(vaddr)),
-                flags,
-            );
-            vaddr += PAGE_SIZE;
-        }
+        ms.insert(MapArea::new_offset(
+            VirtAddr::new(start),
+            PhysAddr::new(virt_to_phys(start)),
+            end - start,
+            flags,
+        ));
     };
 
     // map kernel sections
@@ -84,16 +185,16 @@ pub fn init_paging() {
         );
     }
 
-    let root = pt.root_paddr().as_usize();
-    KERNEL_PAGE_TABLE.init_by(pt);
-
-    // Set TTBR0_EL1
-    unsafe { arch::activate_paging(root) };
+    KERNEL_SPACE.init_by(ms);
+    unsafe {
+        KERNEL_SPACE.activate(true); // set TTBR1 to kernel page table
+        arch::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
+    }
 }
 
 #[allow(unused)]
 pub fn remap_test() {
-    let pt = &KERNEL_PAGE_TABLE;
+    let pt = &KERNEL_SPACE.pt;
     let mid_text = VirtAddr::new(stext as usize + (etext as usize - stext as usize) / 2);
     let mid_rodata = VirtAddr::new(srodata as usize + (erodata as usize - srodata as usize) / 2);
     let mid_data = VirtAddr::new(sdata as usize + (edata as usize - sdata as usize) / 2);

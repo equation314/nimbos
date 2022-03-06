@@ -23,16 +23,14 @@ pub unsafe fn set_thread_pointer(tp: usize) {
     TPIDR_EL1.set(tp as _)
 }
 
-pub unsafe fn activate_paging(page_table_root: usize) {
-    // user space use TTBR0 (0x0..0xffff_ffff_ffff)
-    TTBR0_EL1.set(page_table_root as _);
-    flush_tlb_all();
-}
-
-#[allow(unused)]
-pub unsafe fn activate_paging_kernel(kernel_page_table_root: usize) {
-    // kernel space use TTBR1 (0xffff_0000_0000_0000..0xffff_ffff_ffff_ffff)
-    TTBR1_EL1.set(kernel_page_table_root as _);
+pub unsafe fn activate_paging(page_table_root: usize, is_kernel: bool) {
+    if is_kernel {
+        // kernel space use TTBR1 (0xffff_0000_0000_0000..0xffff_ffff_ffff_ffff)
+        TTBR1_EL1.set(page_table_root as _);
+    } else {
+        // user space use TTBR0 (0x0..0xffff_ffff_ffff)
+        TTBR0_EL1.set(page_table_root as _);
+    }
     flush_tlb_all();
 }
 

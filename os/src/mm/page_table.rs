@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::fmt;
 
-use super::{MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
+use super::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
 
 bitflags::bitflags! {
     /// Memory attribute fields in the VMSAv8-64 translation table format descriptors.
@@ -188,7 +188,7 @@ impl fmt::Debug for PageTableEntry {
 
 pub struct PageTable {
     root_paddr: PhysAddr,
-    frames: Vec<PhysFrame>,
+    intrm_tables: Vec<PhysFrame>,
 }
 
 impl PageTable {
@@ -196,7 +196,7 @@ impl PageTable {
         let root_frame = PhysFrame::alloc_zero().unwrap();
         Self {
             root_paddr: root_frame.start_paddr(),
-            frames: vec![root_frame],
+            intrm_tables: vec![root_frame],
         }
     }
 
@@ -208,7 +208,7 @@ impl PageTable {
     pub unsafe fn from_root(root_paddr: PhysAddr) -> Self {
         Self {
             root_paddr,
-            frames: Vec::new(),
+            intrm_tables: Vec::new(),
         }
     }
 
@@ -220,7 +220,6 @@ impl PageTable {
         *entry = PageTableEntry::new_page(paddr.align_down(), flags, false);
     }
 
-    #[allow(unused)]
     pub fn unmap(&mut self, vaddr: VirtAddr) {
         let entry = self.get_entry_mut(vaddr).unwrap();
         if entry.is_unused() {
@@ -236,6 +235,26 @@ impl PageTable {
         }
         let off = vaddr.page_offset();
         Some((PhysAddr::new(entry.paddr().as_usize() + off), entry.flags()))
+    }
+
+    pub fn map_area(&mut self, area: &mut MapArea) {
+        let mut vaddr = area.start.as_usize();
+        let end = vaddr + area.size;
+        while vaddr < end {
+            let paddr = area.map(VirtAddr::new(vaddr));
+            self.map(VirtAddr::new(vaddr), paddr, area.flags);
+            vaddr += PAGE_SIZE;
+        }
+    }
+
+    pub fn unmap_area(&mut self, area: &mut MapArea) {
+        let mut vaddr = area.start.as_usize();
+        let end = vaddr + area.size;
+        while vaddr < end {
+            area.unmap(VirtAddr::new(vaddr));
+            self.unmap(VirtAddr::new(vaddr));
+            vaddr += PAGE_SIZE;
+        }
     }
 
     #[allow(unused)]
@@ -264,7 +283,7 @@ impl PageTable {
     fn alloc_intrm_table(&mut self) -> PhysAddr {
         let frame = PhysFrame::alloc_zero().unwrap();
         let paddr = frame.start_paddr();
-        self.frames.push(frame);
+        self.intrm_tables.push(frame);
         paddr
     }
 

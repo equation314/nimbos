@@ -1,11 +1,14 @@
 mod manager;
 mod switch;
 
+use alloc::boxed::Box;
+
 use self::manager::TASK_MANAGER;
 use self::switch::TaskContext;
 use crate::arch;
 use crate::config::KERNEL_STACK_SIZE;
-use crate::loader::Stack;
+use crate::loader::{self, Stack};
+use crate::mm::MemorySet;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -26,18 +29,20 @@ struct TaskEntryStatus {
 pub struct Task {
     id: usize,
     status: TaskStatus,
+    memory_set: Option<MemorySet>,
+    kstack: Option<Box<Stack<KERNEL_STACK_SIZE>>>,
     ctx: TaskContext,
-    kstack: Stack<KERNEL_STACK_SIZE>,
     entry: TaskEntryStatus,
 }
 
 impl Task {
-    pub const fn uninit() -> Self {
+    const fn uninit() -> Self {
         Self {
             id: 0,
             status: TaskStatus::UnInit,
+            memory_set: None,
             ctx: TaskContext::default(),
-            kstack: Stack::default(),
+            kstack: None,
             entry: TaskEntryStatus {
                 pc: 0,
                 sp: 0,
@@ -46,26 +51,54 @@ impl Task {
         }
     }
 
-    pub fn init_kernel(&mut self, id: usize, entry: fn(usize) -> usize, arg: usize) {
-        self.id = id;
-        self.entry = TaskEntryStatus {
+    pub fn new_kernel(id: usize, entry: fn(usize) -> usize, arg: usize) -> Self {
+        let mut t = Self::uninit();
+        let kstack = Box::new(Stack::default());
+        t.id = id;
+        t.entry = TaskEntryStatus {
             pc: entry as usize,
             arg,
             sp: 0,
         };
-        self.ctx.init(kernel_task_entry as _, self.kstack.top());
-        self.status = TaskStatus::Ready;
+        t.ctx.init(kernel_task_entry as _, kstack.top());
+        t.kstack = Some(kstack);
+        t.status = TaskStatus::Ready;
+        t
     }
 
-    pub fn init_user(&mut self, id: usize, entry: usize, ustack_top: usize) {
-        self.id = id;
-        self.entry = TaskEntryStatus {
+    pub fn new_user(id: usize, entry: usize, ustack_top: usize, ms: MemorySet) -> Self {
+        let mut t = Self::uninit();
+        let kstack = Box::new(Stack::default());
+        t.id = id;
+        t.memory_set = Some(ms);
+        t.entry = TaskEntryStatus {
             pc: entry as usize,
             arg: 0,
             sp: ustack_top,
         };
-        self.ctx.init(user_task_entry as _, self.kstack.top());
-        self.status = TaskStatus::Ready;
+        t.ctx.init(user_task_entry as _, kstack.top());
+        t.kstack = Some(kstack);
+        t.status = TaskStatus::Ready;
+        t
+    }
+
+    /// Must called in `TaskManager::resched()`.
+    fn switch_to(&mut self, next_task: &mut Task) {
+        assert!(TASK_MANAGER.is_locked());
+        assert!(next_task.status != TaskStatus::UnInit);
+        next_task.status = TaskStatus::Running;
+        if core::ptr::eq(self, next_task) {
+            return;
+        }
+        CurrentTask::set(next_task);
+        unsafe {
+            if let Some(ms) = &mut next_task.memory_set {
+                ms.activate(false); // user task
+            } else {
+                arch::activate_paging(0, false); // kernel task
+            }
+            switch::context_switch(&mut self.ctx, &next_task.ctx);
+        }
     }
 }
 
@@ -85,7 +118,7 @@ fn user_task_entry() -> ! {
     assert!(arch::irqs_disabled());
     let task = CurrentTask::get();
     let tf = TrapFrame::new_user(task.entry.pc, task.entry.sp);
-    unsafe { tf.exec(task.kstack.top()) };
+    unsafe { tf.exec(task.kstack.as_ref().unwrap().top()) };
 }
 
 pub struct CurrentTask;
@@ -113,7 +146,28 @@ impl CurrentTask {
 }
 
 pub fn init() {
-    TASK_MANAGER.lock().init();
+    let mut m = TASK_MANAGER.lock();
+    let kernel_task_count = 2;
+    m.add_task(Task::new_kernel(
+        0,
+        |arg| {
+            println!("test kernel task 0: arg = {:#x}", arg);
+            0
+        },
+        0xdead,
+    ));
+    m.add_task(Task::new_kernel(
+        1,
+        |arg| {
+            println!("test kernel task 1: arg = {:#x}", arg);
+            0
+        },
+        0xbeef,
+    ));
+    for i in 0..loader::get_app_count() {
+        let (entry, ustack_top, ms) = loader::load_app(i);
+        m.add_task(Task::new_user(i + kernel_task_count, entry, ustack_top, ms));
+    }
 }
 
 pub fn run() -> ! {
