@@ -10,7 +10,7 @@ pub const MMIO_REGIONS: &[(usize, usize)] = &[
     (0x0800_0000, 0x2_0000), // GICv2
 ];
 
-pub const KERNEL_ASPACE_BASE: usize = 0; // 0xffff_0000_0000_0000;
+pub const PHYS_VIRT_OFFSET: usize = 0xffff_0000_0000_0000;
 
 pub const APP_BASE_ADDRESS: usize = 0x4020_0000;
 pub const APP_SIZE_LIMIT: usize = 0x20000;

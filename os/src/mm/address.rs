@@ -3,7 +3,7 @@
 use core::fmt;
 
 use super::PAGE_SIZE;
-use crate::config::KERNEL_ASPACE_BASE;
+use crate::config::PHYS_VIRT_OFFSET;
 
 const PA_1TB_BITS: usize = 40;
 const VA_MAX_BITS: usize = 48;
@@ -14,8 +14,12 @@ pub struct PhysAddr(usize);
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(usize);
 
-const fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-    VirtAddr::new(paddr.as_usize() + KERNEL_ASPACE_BASE)
+pub const fn phys_to_virt(paddr: usize) -> usize {
+    paddr + PHYS_VIRT_OFFSET
+}
+
+pub const fn virt_to_phys(vaddr: usize) -> usize {
+    vaddr - PHYS_VIRT_OFFSET
 }
 
 impl fmt::Debug for PhysAddr {
@@ -39,11 +43,8 @@ impl PhysAddr {
     pub const fn as_usize(&self) -> usize {
         self.0
     }
-    pub const fn as_ptr(&self) -> *const u8 {
-        phys_to_virt(*self).as_usize() as _
-    }
-    pub const fn as_mut_ptr(&self) -> *mut u8 {
-        phys_to_virt(*self).as_usize() as _
+    pub const fn into_vaddr(self) -> VirtAddr {
+        VirtAddr::new(phys_to_virt(self.0))
     }
     pub const fn align_down(&self) -> Self {
         Self(align_down(self.0, PAGE_SIZE))
@@ -72,6 +73,12 @@ impl VirtAddr {
     }
     pub const fn as_usize(&self) -> usize {
         self.0
+    }
+    pub const fn as_ptr(&self) -> *const u8 {
+        self.as_usize() as _
+    }
+    pub const fn as_mut_ptr(&self) -> *mut u8 {
+        self.as_usize() as _
     }
     pub const fn align_down(&self) -> Self {
         Self(align_down(self.0, PAGE_SIZE))

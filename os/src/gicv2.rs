@@ -6,12 +6,13 @@ use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 
+use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
 use crate::trap::IrqHandlerResult;
 
 const GIC_BASE: usize = 0x0800_0000;
-const GICD_BASE: usize = GIC_BASE;
-const GICC_BASE: usize = GIC_BASE + 0x10000;
+const GICD_BASE: PhysAddr = PhysAddr::new(GIC_BASE);
+const GICC_BASE: PhysAddr = PhysAddr::new(GIC_BASE + 0x10000);
 
 const PPI_BASE: usize = 16;
 const SPI_BASE: usize = 32;
@@ -93,13 +94,13 @@ enum Polarity {
 }
 
 struct Gic {
-    gicd_base: usize,
-    gicc_base: usize,
+    gicd_base: VirtAddr,
+    gicc_base: VirtAddr,
     max_irqs: usize,
 }
 
 impl Gic {
-    fn new(gicd_base: usize, gicc_base: usize) -> Self {
+    fn new(gicd_base: VirtAddr, gicc_base: VirtAddr) -> Self {
         let mut gic = Self {
             gicd_base,
             gicc_base,
@@ -110,11 +111,11 @@ impl Gic {
     }
 
     const fn gicd(&self) -> &GicDistributorRegs {
-        unsafe { &*(self.gicd_base as *const _) }
+        unsafe { &*(self.gicd_base.as_ptr() as *const _) }
     }
 
     const fn gicc(&self) -> &GicCpuInterfaceRegs {
-        unsafe { &*(self.gicc_base as *const _) }
+        unsafe { &*(self.gicc_base.as_ptr() as *const _) }
     }
 
     fn cpu_num(&self) -> usize {
@@ -213,7 +214,7 @@ pub fn handle_irq() -> IrqHandlerResult {
 }
 
 pub fn init() {
-    let gic = Gic::new(GICD_BASE, GICC_BASE);
+    let gic = Gic::new(GICD_BASE.into_vaddr(), GICC_BASE.into_vaddr());
     gic.init();
     GIC.init_by(gic);
 }

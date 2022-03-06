@@ -7,7 +7,7 @@ mod page_table;
 pub use address::{PhysAddr, VirtAddr};
 pub use frame_allocator::PhysFrame;
 pub use memory_set::remap_test;
-pub use page_table::PageTable;
+pub use page_table::{PageTable, PageTableEntry};
 
 pub const PAGE_SIZE: usize = 0x1000;
 

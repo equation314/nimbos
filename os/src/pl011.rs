@@ -4,9 +4,11 @@ use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite};
 
-const UART_BASE: usize = 0x0900_0000;
+use crate::mm::{PhysAddr, VirtAddr};
 
-static UART: Pl011Uart = Pl011Uart::new(UART_BASE);
+const UART_BASE: PhysAddr = PhysAddr::new(0x0900_0000);
+
+static UART: Pl011Uart = Pl011Uart::new(UART_BASE.into_vaddr());
 
 register_structs! {
     Pl011UartRegs {
@@ -20,16 +22,16 @@ register_structs! {
 }
 
 struct Pl011Uart {
-    base_addr: usize,
+    base_vaddr: VirtAddr,
 }
 
 impl Pl011Uart {
-    const fn new(base_addr: usize) -> Self {
-        Self { base_addr }
+    const fn new(base_vaddr: VirtAddr) -> Self {
+        Self { base_vaddr }
     }
 
     const fn regs(&self) -> &Pl011UartRegs {
-        unsafe { &*(self.base_addr as *const _) }
+        unsafe { &*(self.base_vaddr.as_ptr() as *const _) }
     }
 
     fn putchar(&self, c: u8) {

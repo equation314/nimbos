@@ -140,11 +140,17 @@ pub struct PageTableEntry(u64);
 impl PageTableEntry {
     const PHYS_ADDR_MASK: usize = PhysAddr::MAX & !(PAGE_SIZE - 1);
 
-    fn new_page(paddr: PhysAddr, flags: MemFlags) -> Self {
-        let attr = DescriptorAttr::from(flags) | DescriptorAttr::NON_BLOCK | DescriptorAttr::AF;
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    pub fn new_page(paddr: PhysAddr, flags: MemFlags, is_block: bool) -> Self {
+        let mut attr = DescriptorAttr::from(flags) | DescriptorAttr::AF;
+        if !is_block {
+            attr |= DescriptorAttr::NON_BLOCK;
+        }
         Self(attr.bits() | (paddr.as_usize() & Self::PHYS_ADDR_MASK) as u64)
     }
-    fn new_table(paddr: PhysAddr) -> Self {
+    pub fn new_table(paddr: PhysAddr) -> Self {
         let attr = DescriptorAttr::NON_BLOCK | DescriptorAttr::VALID;
         Self(attr.bits() | (paddr.as_usize() & Self::PHYS_ADDR_MASK) as u64)
     }
@@ -211,7 +217,7 @@ impl PageTable {
         if !entry.is_unused() {
             panic!("{:#x?} is mapped before mapping", vaddr);
         }
-        *entry = PageTableEntry::new_page(paddr.align_down(), flags);
+        *entry = PageTableEntry::new_page(paddr.align_down(), flags, false);
     }
 
     #[allow(unused)]
@@ -337,12 +343,12 @@ const fn p1_index(vaddr: VirtAddr) -> usize {
 }
 
 fn table_of<'a>(paddr: PhysAddr) -> &'a [PageTableEntry] {
-    let ptr = paddr.as_ptr() as *const PageTableEntry;
+    let ptr = paddr.into_vaddr().as_ptr() as *const PageTableEntry;
     unsafe { core::slice::from_raw_parts(ptr, ENTRY_COUNT) }
 }
 
 fn table_of_mut<'a>(paddr: PhysAddr) -> &'a mut [PageTableEntry] {
-    let ptr = paddr.as_mut_ptr() as *mut PageTableEntry;
+    let ptr = paddr.into_vaddr().as_mut_ptr() as *mut PageTableEntry;
     unsafe { core::slice::from_raw_parts_mut(ptr, ENTRY_COUNT) }
 }
 

@@ -1,5 +1,5 @@
 ENTRY(_start)
-BASE_ADDRESS = 0x40080000;
+BASE_ADDRESS = 0xffff000040080000;
 
 SECTIONS
 {
@@ -24,6 +24,7 @@ SECTIONS
 
     .data : {
         sdata = .;
+        *(.data.boot_page_table)
         *(.data .data.*)
         *(.sdata .sdata.*)
         . = ALIGN(4K);

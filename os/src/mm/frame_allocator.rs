@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 use core::ops::Range;
 
-use super::{PhysAddr, PAGE_SIZE};
+use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
 use crate::config::MEMORY_END;
 use crate::sync::SpinNoIrqLock;
 
@@ -80,7 +80,7 @@ impl PhysFrame {
     }
 
     pub fn zero(&mut self) {
-        unsafe { core::ptr::write_bytes(self.start_paddr.as_mut_ptr(), 0, PAGE_SIZE) }
+        unsafe { core::ptr::write_bytes(self.start_paddr.into_vaddr().as_mut_ptr(), 0, PAGE_SIZE) }
     }
 }
 
@@ -96,9 +96,11 @@ pub fn init_frame_allocator() {
     extern "C" {
         fn ekernel();
     }
+    let start_paddr = PhysAddr::new(virt_to_phys(ekernel as usize)).align_up();
+    let end_paddr = PhysAddr::new(MEMORY_END).align_down();
     FRAME_ALLOCATOR.lock().init(
-        PhysAddr::new(ekernel as usize).align_up().as_usize() / PAGE_SIZE,
-        PhysAddr::new(MEMORY_END).align_down().as_usize() / PAGE_SIZE,
+        start_paddr.as_usize() / PAGE_SIZE,
+        end_paddr.as_usize() / PAGE_SIZE,
     );
 }
 

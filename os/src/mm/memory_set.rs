@@ -1,6 +1,4 @@
-use cortex_a::registers::{MAIR_EL1, SCTLR_EL1, TCR_EL1};
-use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
-
+use super::address::{phys_to_virt, virt_to_phys};
 use super::{MemFlags, PageTable};
 use crate::arch;
 use crate::config::{MEMORY_END, MMIO_REGIONS};
@@ -23,40 +21,6 @@ extern "C" {
     fn ekernel();
 }
 
-fn init_mmu() {
-    // Device-nGnRE memory
-    let attr0 = MAIR_EL1::Attr0_Device::nonGathering_nonReordering_EarlyWriteAck;
-    // Normal memory
-    let attr1 = MAIR_EL1::Attr1_Normal_Inner::WriteBack_NonTransient_ReadWriteAlloc
-        + MAIR_EL1::Attr1_Normal_Outer::WriteBack_NonTransient_ReadWriteAlloc;
-    MAIR_EL1.write(attr0 + attr1);
-    assert_eq!(MAIR_EL1.get(), 0xff_04);
-
-    // Enable TTBR0 and TTBR1 walks, page size = 4K, vaddr size = 48 bits, paddr size = 40 bits.
-    let tcr_flags0 = TCR_EL1::EPD0::EnableTTBR0Walks
-        + TCR_EL1::TG0::KiB_4
-        + TCR_EL1::SH0::Inner
-        + TCR_EL1::ORGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN0::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::T0SZ.val(16);
-    let tcr_flags1 = TCR_EL1::EPD1::EnableTTBR1Walks
-        + TCR_EL1::TG1::KiB_4
-        + TCR_EL1::SH1::Inner
-        + TCR_EL1::ORGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::IRGN1::WriteBack_ReadAlloc_WriteAlloc_Cacheable
-        + TCR_EL1::T1SZ.val(16);
-    TCR_EL1.write(TCR_EL1::IPS::Bits_40 + tcr_flags0 + tcr_flags1);
-
-    // Flush TLB
-    arch::flush_tlb_all();
-
-    // Enable the MMU and turn on I-cache and D-cache
-    SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
-
-    // Flush I-cache
-    arch::flush_icache_all();
-}
-
 pub fn init_paging() {
     let mut pt = PageTable::new();
     let mut map_range = |start: usize, end: usize, flags: MemFlags, name: &str| {
@@ -65,7 +29,11 @@ pub fn init_paging() {
         assert!(VirtAddr::new(end).is_aligned());
         let mut vaddr = start;
         while vaddr < end {
-            pt.map(VirtAddr::new(vaddr), PhysAddr::new(vaddr), flags);
+            pt.map(
+                VirtAddr::new(vaddr),
+                PhysAddr::new(virt_to_phys(vaddr)),
+                flags,
+            );
             vaddr += PAGE_SIZE;
         }
     };
@@ -103,14 +71,14 @@ pub fn init_paging() {
     );
     map_range(
         ekernel as usize,
-        MEMORY_END as usize,
+        phys_to_virt(MEMORY_END),
         MemFlags::READ | MemFlags::WRITE,
         "physical memory",
     );
     for (base, size) in MMIO_REGIONS {
         map_range(
-            *base,
-            *base + *size,
+            phys_to_virt(*base),
+            phys_to_virt(*base + *size),
             MemFlags::READ | MemFlags::WRITE | MemFlags::DEVICE,
             "MMIO",
         );
@@ -121,16 +89,15 @@ pub fn init_paging() {
 
     // Set TTBR0_EL1
     unsafe { arch::activate_paging(root) };
-    init_mmu();
 }
 
 #[allow(unused)]
 pub fn remap_test() {
     let pt = &KERNEL_PAGE_TABLE;
-    let mid_text = VirtAddr::new((stext as usize + etext as usize) / 2);
-    let mid_rodata = VirtAddr::new((srodata as usize + erodata as usize) / 2);
-    let mid_data = VirtAddr::new((sdata as usize + edata as usize) / 2);
-    let mid_mmio = VirtAddr::new(MMIO_REGIONS[0].0);
+    let mid_text = VirtAddr::new(stext as usize + (etext as usize - stext as usize) / 2);
+    let mid_rodata = VirtAddr::new(srodata as usize + (erodata as usize - srodata as usize) / 2);
+    let mid_data = VirtAddr::new(sdata as usize + (edata as usize - sdata as usize) / 2);
+    let mid_mmio = VirtAddr::new(phys_to_virt(MMIO_REGIONS[0].0));
     assert!(!pt.query(mid_text).unwrap().1.contains(MemFlags::WRITE));
     assert!(!pt.query(mid_rodata).unwrap().1.contains(MemFlags::EXECUTE));
     assert!(pt.query(mid_mmio).unwrap().1.contains(MemFlags::DEVICE));
