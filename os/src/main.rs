@@ -3,6 +3,7 @@
 #![feature(asm_sym)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![feature(naked_functions)]
 #![feature(const_maybe_uninit_zeroed)]
 
 extern crate alloc;

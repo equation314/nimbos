@@ -8,7 +8,7 @@ use crate::mm::{PhysAddr, VirtAddr};
 
 const UART_BASE: PhysAddr = PhysAddr::new(0x0900_0000);
 
-static UART: Pl011Uart = Pl011Uart::new(UART_BASE.into_vaddr());
+static UART: Pl011Uart = Pl011Uart::new(UART_BASE.into_kvaddr());
 
 register_structs! {
     Pl011UartRegs {

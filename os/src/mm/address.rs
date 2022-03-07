@@ -43,7 +43,7 @@ impl PhysAddr {
     pub const fn as_usize(&self) -> usize {
         self.0
     }
-    pub const fn into_vaddr(self) -> VirtAddr {
+    pub const fn into_kvaddr(self) -> VirtAddr {
         VirtAddr::new(phys_to_virt(self.0))
     }
     pub const fn align_down(&self) -> Self {
@@ -94,18 +94,18 @@ impl VirtAddr {
     }
 }
 
-const fn align_down(addr: usize, page_size: usize) -> usize {
+pub const fn align_down(addr: usize, page_size: usize) -> usize {
     addr & !(page_size - 1)
 }
 
-const fn align_up(addr: usize, page_size: usize) -> usize {
+pub const fn align_up(addr: usize, page_size: usize) -> usize {
     (addr + page_size - 1) & !(page_size - 1)
 }
 
-const fn page_offset(addr: usize, page_size: usize) -> usize {
+pub const fn page_offset(addr: usize, page_size: usize) -> usize {
     addr & (page_size - 1)
 }
 
-const fn is_aligned(addr: usize, page_size: usize) -> bool {
+pub const fn is_aligned(addr: usize, page_size: usize) -> bool {
     page_offset(addr, page_size) == 0
 }

@@ -30,9 +30,10 @@ impl TaskContext {
     }
 }
 
-#[inline(never)]
-pub unsafe fn context_switch(current_task: &mut TaskContext, next_task: &TaskContext) {
-    asm!("
+#[naked]
+pub unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
+    asm!(
+        "
         // save old context (callee-saved registers)
         stp     x29, x30, [x0, 12 * 8]
         stp     x27, x28, [x0, 10 * 8]
@@ -56,8 +57,6 @@ pub unsafe fn context_switch(current_task: &mut TaskContext, next_task: &TaskCon
         ldp     x29, x30, [x1, 12 * 8]
 
         ret",
-        in("x0") current_task,
-        in("x1") next_task,
         options(noreturn),
     )
 }

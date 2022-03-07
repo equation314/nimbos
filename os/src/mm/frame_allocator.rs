@@ -80,7 +80,7 @@ impl PhysFrame {
     }
 
     pub fn zero(&mut self) {
-        unsafe { core::ptr::write_bytes(self.start_paddr.into_vaddr().as_mut_ptr(), 0, PAGE_SIZE) }
+        unsafe { core::ptr::write_bytes(self.start_paddr.into_kvaddr().as_mut_ptr(), 0, PAGE_SIZE) }
     }
 }
 

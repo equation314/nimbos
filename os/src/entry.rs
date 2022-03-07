@@ -109,12 +109,14 @@ unsafe fn init_boot_page_table() {
     );
 }
 
+#[naked]
 #[no_mangle]
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> ! {
     // PC = 0x4008_0000
     asm!("
-        mov     sp, {boot_stack_top}
+        adrp    x8, boot_stack_top
+        mov     sp, x8
         bl      {switch_to_el1}
         bl      {init_boot_page_table}
         bl      {init_mmu}
@@ -123,7 +125,6 @@ unsafe extern "C" fn _start() -> ! {
         ldr     x8, ={rust_main}
         br      x8
         b       .",
-        boot_stack_top = in(reg) BOOT_STACK.as_ptr_range().end,
         switch_to_el1 = sym switch_to_el1,
         init_boot_page_table = sym init_boot_page_table,
         init_mmu = sym init_mmu,

@@ -55,7 +55,7 @@ impl TaskManager {
         let curr_task = CurrentTask::get_mut();
         curr_task.status = TaskStatus::Exited;
         self.resched();
-        panic!("task exited!");
+        unreachable!("task exited!");
         // TODO: remove from self.tasks
     }
 }

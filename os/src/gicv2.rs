@@ -214,7 +214,7 @@ pub fn handle_irq() -> IrqHandlerResult {
 }
 
 pub fn init() {
-    let gic = Gic::new(GICD_BASE.into_vaddr(), GICC_BASE.into_vaddr());
+    let gic = Gic::new(GICD_BASE.into_kvaddr(), GICC_BASE.into_kvaddr());
     gic.init();
     GIC.init_by(gic);
 }

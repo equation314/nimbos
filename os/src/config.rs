@@ -13,7 +13,4 @@ pub const MMIO_REGIONS: &[(usize, usize)] = &[
 
 pub const PHYS_VIRT_OFFSET: usize = 0xffff_0000_0000_0000;
 
-pub const APP_BASE_ADDRESS: usize = 0x4020_0000;
-pub const APP_SIZE_LIMIT: usize = 0x20000;
-
 pub const TICKS_PER_SEC: u64 = 100;

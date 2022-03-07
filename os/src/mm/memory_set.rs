@@ -1,7 +1,8 @@
 use alloc::collections::btree_map::{BTreeMap, Entry};
+use core::fmt;
 
-use super::address::{phys_to_virt, virt_to_phys};
-use super::{MemFlags, PageTable, PhysFrame};
+use super::address::{align_down, is_aligned, phys_to_virt, virt_to_phys};
+use super::{MemFlags, PageTable, PhysFrame, PAGE_SIZE};
 use crate::arch;
 use crate::config::{MEMORY_END, MMIO_REGIONS};
 use crate::mm::{PhysAddr, VirtAddr};
@@ -47,8 +48,9 @@ impl MapArea {
         size: usize,
         flags: MemFlags,
     ) -> Self {
-        let start_vaddr = start_vaddr.align_down();
-        let start_paddr = start_paddr.align_down();
+        assert!(start_vaddr.is_aligned());
+        assert!(start_paddr.is_aligned());
+        assert!(is_aligned(size, PAGE_SIZE));
         let offset = start_vaddr.as_usize() - start_paddr.as_usize();
         Self {
             start: start_vaddr,
@@ -59,6 +61,8 @@ impl MapArea {
     }
 
     pub fn new_framed(start_vaddr: VirtAddr, size: usize, flags: MemFlags) -> Self {
+        assert!(start_vaddr.is_aligned());
+        assert!(is_aligned(size, PAGE_SIZE));
         Self {
             start: start_vaddr,
             size,
@@ -68,11 +72,12 @@ impl MapArea {
     }
 
     pub fn map(&mut self, vaddr: VirtAddr) -> PhysAddr {
+        assert!(vaddr.is_aligned());
         match &mut self.mapper {
             Mapper::Offset(off) => PhysAddr::new(vaddr.as_usize() - *off),
             Mapper::Framed(frames) => match frames.entry(vaddr) {
                 Entry::Occupied(e) => e.get().start_paddr(),
-                Entry::Vacant(e) => e.insert(PhysFrame::alloc().unwrap()).start_paddr(),
+                Entry::Vacant(e) => e.insert(PhysFrame::alloc_zero().unwrap()).start_paddr(),
             },
         }
     }
@@ -80,6 +85,29 @@ impl MapArea {
     pub fn unmap(&mut self, vaddr: VirtAddr) {
         if let Mapper::Framed(frames) = &mut self.mapper {
             frames.remove(&vaddr);
+        }
+    }
+
+    pub fn write_data(&mut self, offset: usize, data: &[u8]) {
+        assert!(offset < self.size);
+        assert!(offset + data.len() < self.size);
+        let mut start = offset;
+        let mut remain = data.len();
+        let mut processed = 0;
+        while remain > 0 {
+            let start_align = align_down(start, PAGE_SIZE);
+            let pgoff = start - start_align;
+            let n = (PAGE_SIZE - pgoff).min(remain);
+
+            let vaddr = VirtAddr::new(self.start.as_usize() + start_align);
+            let paddr = self.map(vaddr);
+            unsafe {
+                core::slice::from_raw_parts_mut(paddr.into_kvaddr().as_mut_ptr().add(pgoff), n)
+                    .copy_from_slice(&data[processed..processed + n]);
+            }
+            start += n;
+            processed += n;
+            remain -= n;
         }
     }
 }
@@ -94,6 +122,7 @@ impl MemorySet {
 
     pub fn insert(&mut self, area: MapArea) {
         if !area.size > 0 {
+            // TODO: check overlap
             if let Entry::Vacant(e) = self.areas.entry(area.start) {
                 self.pt.map_area(e.insert(area));
             } else {
@@ -189,6 +218,29 @@ pub fn init_paging() {
     unsafe {
         KERNEL_SPACE.activate(true); // set TTBR1 to kernel page table
         arch::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
+    }
+}
+
+impl fmt::Debug for MapArea {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let start = self.start.as_usize();
+        let mut s = f.debug_struct("MapArea");
+        s.field("va_range", &(start..start + self.size))
+            .field("flags", &self.flags);
+        match &self.mapper {
+            Mapper::Framed(_) => s.field("mapper", &"Frame"),
+            Mapper::Offset(off) => s.field("mapper", &alloc::format!("Offset({})", off)),
+        }
+        .finish()
+    }
+}
+
+impl fmt::Debug for MemorySet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("MemorySet")
+            .field("areas", &self.areas.values())
+            .field("page_table_root", &self.pt.root_paddr())
+            .finish()
     }
 }
 

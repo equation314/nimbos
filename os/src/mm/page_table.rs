@@ -362,12 +362,12 @@ const fn p1_index(vaddr: VirtAddr) -> usize {
 }
 
 fn table_of<'a>(paddr: PhysAddr) -> &'a [PageTableEntry] {
-    let ptr = paddr.into_vaddr().as_ptr() as *const PageTableEntry;
+    let ptr = paddr.into_kvaddr().as_ptr() as *const PageTableEntry;
     unsafe { core::slice::from_raw_parts(ptr, ENTRY_COUNT) }
 }
 
 fn table_of_mut<'a>(paddr: PhysAddr) -> &'a mut [PageTableEntry] {
-    let ptr = paddr.into_vaddr().as_mut_ptr() as *mut PageTableEntry;
+    let ptr = paddr.into_kvaddr().as_mut_ptr() as *mut PageTableEntry;
     unsafe { core::slice::from_raw_parts_mut(ptr, ENTRY_COUNT) }
 }
 
