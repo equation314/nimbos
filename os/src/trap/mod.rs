@@ -58,7 +58,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
             println!("[kernel] Unknown exception @ {:#x}", cx.elr);
-            CurrentTask::exit(-1);
+            CurrentTask::get().exit(-1);
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
             cx.r[0] = syscall(cx.r[8] as _, [cx.r[0] as _, cx.r[1] as _, cx.r[2] as _]) as u64
@@ -72,7 +72,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
                 FAR_EL1.get(),
                 iss
             );
-            CurrentTask::exit(-1);
+            CurrentTask::get().exit(-1);
         }
         Some(ESR_EL1::EC::Value::InstrAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
@@ -83,7 +83,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
                 FAR_EL1.get(),
                 iss
             );
-            CurrentTask::exit(-1);
+            CurrentTask::get().exit(-1);
         }
         _ => {
             panic!(
@@ -100,6 +100,6 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
 #[no_mangle]
 fn handle_irq_exception(_cx: &mut TrapFrame) {
     if crate::gicv2::handle_irq() == IrqHandlerResult::Reschedule {
-        CurrentTask::yield_now();
+        CurrentTask::get().yield_now();
     }
 }

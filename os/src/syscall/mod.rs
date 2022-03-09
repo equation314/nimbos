@@ -19,7 +19,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_GET_TIME => sys_get_time(),
         _ => {
             println!("Unsupported syscall_id: {}", syscall_id);
-            crate::task::CurrentTask::exit(-1);
+            crate::task::CurrentTask::get().exit(-1);
         }
     };
     arch::disable_irqs();

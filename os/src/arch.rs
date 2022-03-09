@@ -41,3 +41,7 @@ pub fn flush_icache_all() {
 pub fn flush_tlb_all() {
     unsafe { asm!("tlbi vmalle1; dsb sy; isb") };
 }
+
+pub fn wait_for_ints() {
+    cortex_a::asm::wfi();
+}

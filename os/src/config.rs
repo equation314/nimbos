@@ -13,4 +13,6 @@ pub const MMIO_REGIONS: &[(usize, usize)] = &[
 
 pub const PHYS_VIRT_OFFSET: usize = 0xffff_0000_0000_0000;
 
+pub const MAX_CPUS: usize = 1;
+
 pub const TICKS_PER_SEC: u64 = 100;

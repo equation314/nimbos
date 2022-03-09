@@ -1,63 +1,123 @@
+use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::cell::UnsafeCell;
 
-use super::{CurrentTask, Task, TaskStatus};
-use crate::sync::SpinNoIrqLock;
+use super::schedule::{Scheduler, SimpleScheduler};
+use super::{CurrentTask, PerCpu, Task, TaskState};
+use crate::sync::{LazyInit, SpinNoIrqLock};
 
-pub struct TaskManager {
-    tasks: Vec<Task>,
+pub struct TaskManager<S: Scheduler> {
+    tasks: Vec<Arc<Task>>,
+    scheduler: S,
 }
 
-impl TaskManager {
-    pub const fn new() -> Self {
-        Self { tasks: Vec::new() }
+impl<S: Scheduler> TaskManager<S> {
+    fn new(scheduler: S) -> Self {
+        Self {
+            tasks: Vec::new(),
+            scheduler,
+        }
     }
 
-    pub fn add_task(&mut self, t: Task) {
+    pub fn spawn(&mut self, t: Task) {
+        assert!(t.state.get() == TaskState::Ready);
+        let t = Arc::new(t);
+        self.scheduler.add_ready_task(&t);
         self.tasks.push(t);
     }
 
-    fn pick_next_task(&mut self) -> Option<&mut Task> {
-        let current_task = CurrentTask::get();
-        let start = if current_task.status == TaskStatus::UnInit {
-            0
-        } else {
-            current_task.id + 1
-        };
-        let n = self.tasks.len();
-        for i in 0..n {
-            let id = (start + i) % n;
-            if self.tasks[id].status == TaskStatus::Ready {
-                return Some(&mut self.tasks[id]);
+    fn switch_to(&self, curr_task: &Arc<Task>, next_task: &Arc<Task>) {
+        next_task.state.set(TaskState::Running);
+        if Arc::ptr_eq(curr_task, next_task) {
+            return;
+        }
+        PerCpu::current().set_current_task(next_task.clone());
+        unsafe {
+            if let Some(ms) = &next_task.memory_set {
+                // for user task, set TTBR0 to the user page table root
+                ms.activate(false);
+            } else {
+                // for kernel task, disable TTBR0 translation
+                crate::arch::activate_paging(0, false);
             }
+            super::switch::context_switch(curr_task.ctx.as_mut(), next_task.ctx.as_ref());
         }
-        None
     }
 
-    pub fn resched(&mut self) {
-        let curr_task = CurrentTask::get_mut();
-        assert!(crate::arch::irqs_disabled());
-        assert!(curr_task.status != TaskStatus::Running);
-        if let Some(next_task) = self.pick_next_task() {
-            curr_task.switch_to(next_task);
+    fn resched(&mut self, curr_task: &CurrentTask) {
+        assert!(curr_task.state.get() != TaskState::Running);
+        if let Some(next_task) = self.scheduler.pick_next_task() {
+            self.switch_to(curr_task, &next_task);
         } else {
-            panic!("All applications completed!");
+            self.switch_to(curr_task, PerCpu::idle_task());
         }
     }
 
-    pub fn yield_current(&mut self) {
-        let curr_task = CurrentTask::get_mut();
-        assert!(curr_task.status == TaskStatus::Running);
-        curr_task.status = TaskStatus::Ready;
-        self.resched();
+    pub fn yield_current(&mut self, curr_task: &CurrentTask) {
+        assert!(curr_task.state.get() == TaskState::Running);
+        curr_task.state.set(TaskState::Ready);
+        if !curr_task.is_idle() {
+            self.scheduler.add_ready_task(curr_task);
+        }
+        self.resched(curr_task);
     }
 
-    pub fn exit_current(&mut self, _exit_code: i32) -> ! {
-        let curr_task = CurrentTask::get_mut();
-        curr_task.status = TaskStatus::Exited;
-        self.resched();
+    pub fn exit_current(&mut self, curr_task: &CurrentTask, exit_code: i32) -> ! {
+        assert!(!curr_task.is_idle());
+        assert!(curr_task.state.get() == TaskState::Running);
+        curr_task.state.set(TaskState::Exited);
+        curr_task.exit_code.set(exit_code);
+        self.tasks.retain(|t| t.id != curr_task.id);
+        self.resched(curr_task);
         unreachable!("task exited!");
-        // TODO: remove from self.tasks
     }
 }
 
-pub(super) static TASK_MANAGER: SpinNoIrqLock<TaskManager> = SpinNoIrqLock::new(TaskManager::new());
+/// A wrapper structure which can only be accessed while holding the lock of `TASK_MANAGER`.
+pub struct TaskLockedCell<T> {
+    data: UnsafeCell<T>,
+}
+
+unsafe impl<T: Send> Sync for TaskLockedCell<T> {}
+
+impl<T> TaskLockedCell<T> {
+    pub const fn new(data: T) -> Self {
+        Self {
+            data: UnsafeCell::new(data),
+        }
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        self.data.get_mut()
+    }
+
+    pub fn as_ref(&self) -> &T {
+        assert!(TASK_MANAGER.is_locked());
+        assert!(crate::arch::irqs_disabled());
+        unsafe { &*self.data.get() }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    pub fn as_mut(&self) -> &mut T {
+        assert!(TASK_MANAGER.is_locked());
+        assert!(crate::arch::irqs_disabled());
+        unsafe { &mut *self.data.get() }
+    }
+}
+
+impl<T: Copy> TaskLockedCell<T> {
+    pub fn get(&self) -> T {
+        *self.as_ref()
+    }
+
+    pub fn set(&self, val: T) {
+        *self.as_mut() = val;
+    }
+}
+
+pub(super) static TASK_MANAGER: LazyInit<SpinNoIrqLock<TaskManager<SimpleScheduler>>> =
+    LazyInit::new();
+
+pub(super) fn init() {
+    TASK_MANAGER.init_by(SpinNoIrqLock::new(TaskManager::new(SimpleScheduler::new())));
+}

@@ -1,9 +1,12 @@
 mod manager;
+mod percpu;
+mod schedule;
 mod switch;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 
-use self::manager::TASK_MANAGER;
+use self::manager::{TaskLockedCell, TASK_MANAGER};
+use self::percpu::PerCpu;
 use self::switch::TaskContext;
 use crate::arch;
 use crate::config::KERNEL_STACK_SIZE;
@@ -12,15 +15,14 @@ use crate::mm::MemorySet;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum TaskStatus {
-    UnInit,
+enum TaskState {
     Ready,
     Running,
     Exited,
 }
 
-#[derive(Debug)]
-struct TaskEntryStatus {
+#[derive(Debug, Default)]
+struct EntryState {
     pc: usize,
     sp: usize,
     arg: usize,
@@ -28,77 +30,61 @@ struct TaskEntryStatus {
 
 pub struct Task {
     id: usize,
-    status: TaskStatus,
     memory_set: Option<MemorySet>,
-    kstack: Option<Box<Stack<KERNEL_STACK_SIZE>>>,
-    ctx: TaskContext,
-    entry: TaskEntryStatus,
+    kstack: Box<Stack<KERNEL_STACK_SIZE>>,
+    entry: EntryState,
+
+    state: TaskLockedCell<TaskState>,
+    ctx: TaskLockedCell<TaskContext>,
+    exit_code: TaskLockedCell<i32>,
 }
 
 impl Task {
-    const fn uninit() -> Self {
+    fn new_common(id: usize) -> Self {
         Self {
-            id: 0,
-            status: TaskStatus::UnInit,
+            id,
             memory_set: None,
-            ctx: TaskContext::default(),
-            kstack: None,
-            entry: TaskEntryStatus {
-                pc: 0,
-                sp: 0,
-                arg: 0,
-            },
+            kstack: Box::new(Stack::default()),
+            entry: EntryState::default(),
+            state: TaskLockedCell::new(TaskState::Ready),
+            ctx: TaskLockedCell::new(TaskContext::default()),
+            exit_code: TaskLockedCell::new(0),
         }
     }
 
+    pub fn new_idle() -> Self {
+        let mut t = Self::new_common(0);
+        *t.state.get_mut() = TaskState::Running;
+        t
+    }
+
     pub fn new_kernel(id: usize, entry: fn(usize) -> usize, arg: usize) -> Self {
-        let mut t = Self::uninit();
-        let kstack = Box::new(Stack::default());
-        t.id = id;
-        t.entry = TaskEntryStatus {
+        assert!(id > 0);
+        let mut t = Self::new_common(id);
+        t.entry = EntryState {
             pc: entry as usize,
             arg,
             sp: 0,
         };
-        t.ctx.init(kernel_task_entry as _, kstack.top());
-        t.kstack = Some(kstack);
-        t.status = TaskStatus::Ready;
+        t.ctx.get_mut().init(kernel_task_entry as _, t.kstack.top());
         t
     }
 
     pub fn new_user(id: usize, entry: usize, ustack_top: usize, ms: MemorySet) -> Self {
-        let mut t = Self::uninit();
-        let kstack = Box::new(Stack::default());
-        t.id = id;
+        assert!(id > 0);
+        let mut t = Self::new_common(id);
         t.memory_set = Some(ms);
-        t.entry = TaskEntryStatus {
+        t.entry = EntryState {
             pc: entry as usize,
             arg: 0,
             sp: ustack_top,
         };
-        t.ctx.init(user_task_entry as _, kstack.top());
-        t.kstack = Some(kstack);
-        t.status = TaskStatus::Ready;
+        t.ctx.get_mut().init(user_task_entry as _, t.kstack.top());
         t
     }
 
-    /// Must called in `TaskManager::resched()`.
-    fn switch_to(&mut self, next_task: &mut Task) {
-        assert!(TASK_MANAGER.is_locked());
-        assert!(next_task.status != TaskStatus::UnInit);
-        next_task.status = TaskStatus::Running;
-        if core::ptr::eq(self, next_task) {
-            return;
-        }
-        CurrentTask::set(next_task);
-        unsafe {
-            if let Some(ms) = &mut next_task.memory_set {
-                ms.activate(false); // user task
-            } else {
-                arch::activate_paging(0, false); // kernel task
-            }
-            switch::context_switch(&mut self.ctx, &next_task.ctx);
-        }
+    pub fn is_idle(&self) -> bool {
+        self.id == 0
     }
 }
 
@@ -109,7 +95,7 @@ fn kernel_task_entry() -> ! {
     let task = CurrentTask::get();
     let entry: fn(usize) -> i32 = unsafe { core::mem::transmute(task.entry.pc) };
     let ret = entry(task.entry.arg);
-    CurrentTask::exit(ret as _);
+    task.exit(ret as _);
 }
 
 fn user_task_entry() -> ! {
@@ -118,46 +104,52 @@ fn user_task_entry() -> ! {
     assert!(arch::irqs_disabled());
     let task = CurrentTask::get();
     let tf = TrapFrame::new_user(task.entry.pc, task.entry.sp);
-    unsafe { tf.exec(task.kstack.as_ref().unwrap().top()) };
+    unsafe { tf.exec(task.kstack.top()) };
 }
 
-pub struct CurrentTask;
+pub struct CurrentTask(Arc<Task>);
 
 impl CurrentTask {
-    fn get() -> &'static Task {
-        unsafe { &*(arch::thread_pointer() as *const Task) }
+    pub fn get() -> Self {
+        PerCpu::current().current_task()
     }
 
-    fn get_mut() -> &'static mut Task {
-        unsafe { &mut *(arch::thread_pointer() as *mut Task) }
+    pub fn pid(&self) -> usize {
+        self.0.id
     }
 
-    fn set(task: &Task) {
-        unsafe { arch::set_thread_pointer(task as *const _ as _) };
+    pub fn yield_now(&self) {
+        TASK_MANAGER.lock().yield_current(self)
     }
 
-    pub fn yield_now() {
-        TASK_MANAGER.lock().yield_current()
+    pub fn exit(&self, exit_code: i32) -> ! {
+        TASK_MANAGER.lock().exit_current(self, exit_code)
     }
+}
 
-    pub fn exit(exit_code: i32) -> ! {
-        TASK_MANAGER.lock().exit_current(exit_code)
+impl core::ops::Deref for CurrentTask {
+    type Target = Arc<Task>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 pub fn init() {
+    percpu::init_percpu();
+    manager::init();
+
     let mut m = TASK_MANAGER.lock();
-    let kernel_task_count = 2;
-    m.add_task(Task::new_kernel(
-        0,
+    let kernel_task_count = 3;
+    m.spawn(Task::new_kernel(
+        1,
         |arg| {
             println!("test kernel task 0: arg = {:#x}", arg);
             0
         },
         0xdead,
     ));
-    m.add_task(Task::new_kernel(
-        1,
+    m.spawn(Task::new_kernel(
+        2,
         |arg| {
             println!("test kernel task 1: arg = {:#x}", arg);
             0
@@ -166,13 +158,16 @@ pub fn init() {
     ));
     for i in 0..loader::get_app_count() {
         let (entry, ustack_top, ms) = loader::load_app(i);
-        m.add_task(Task::new_user(i + kernel_task_count, entry, ustack_top, ms));
+        m.spawn(Task::new_user(i + kernel_task_count, entry, ustack_top, ms));
     }
 }
 
 pub fn run() -> ! {
-    let idle = Task::uninit();
-    CurrentTask::set(&idle);
-    TASK_MANAGER.lock().resched();
-    panic!("No tasks to run!");
+    arch::enable_irqs();
+    CurrentTask::get().yield_now(); // current task is idle at this time
+    println!("All applications completed!");
+    println!("Waiting for interrupts...");
+    loop {
+        arch::wait_for_ints();
+    }
 }
