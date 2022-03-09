@@ -24,6 +24,7 @@ mod syscall;
 mod task;
 mod timer;
 mod trap;
+mod utils;
 
 fn clear_bss() {
     extern "C" {

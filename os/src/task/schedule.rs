@@ -1,7 +1,7 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 
-use super::Task;
+use super::structs::Task;
 
 pub trait Scheduler {
     fn add_ready_task(&mut self, t: &Arc<Task>);

@@ -1,5 +1,4 @@
 use core::arch::global_asm;
-use core::ops::Deref;
 
 use xmas_elf::program::{Flags, SegmentData, Type};
 use xmas_elf::{header, ElfFile};
@@ -8,27 +7,6 @@ use crate::config::{USER_STACK_BASE, USER_STACK_SIZE};
 use crate::mm::{MapArea, MemFlags, MemorySet, VirtAddr};
 
 global_asm!(include_str!("link_app.S"));
-
-#[repr(align(4096))]
-#[derive(Clone, Copy)]
-pub struct Stack<const N: usize>([u8; N]);
-
-impl<const N: usize> Stack<N> {
-    pub const fn default() -> Self {
-        Self([0; N])
-    }
-
-    pub fn top(&self) -> usize {
-        self.0.as_ptr_range().end as usize
-    }
-}
-
-impl<const N: usize> Deref for Stack<N> {
-    type Target = [u8; N];
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 extern "C" {
     fn _app_count();

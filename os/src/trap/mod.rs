@@ -57,7 +57,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
     let esr = ESR_EL1.extract();
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
-            println!("[kernel] Unknown exception @ {:#x}", cx.elr);
+            println!("[kernel] Unknown exception @ {:#x}, kernel killed it.", cx.elr);
             CurrentTask::get().exit(-1);
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
@@ -67,7 +67,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
         | Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
             let iss = esr.read(ESR_EL1::ISS);
             println!(
-                "[kernel] Data Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}",
+                "[kernel] Data Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}, kernel killed it.",
                 cx.elr,
                 FAR_EL1.get(),
                 iss
@@ -78,7 +78,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
             let iss = esr.read(ESR_EL1::ISS);
             println!(
-                "[kernel] Instruction Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}",
+                "[kernel] Instruction Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}, kernel killed it.",
                 cx.elr,
                 FAR_EL1.get(),
                 iss

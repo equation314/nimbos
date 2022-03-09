@@ -2,8 +2,9 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 
+use super::percpu::PerCpu;
 use super::schedule::{Scheduler, SimpleScheduler};
-use super::{CurrentTask, PerCpu, Task, TaskState};
+use super::structs::{CurrentTask, Task, TaskState};
 use crate::sync::{LazyInit, SpinNoIrqLock};
 
 pub struct TaskManager<S: Scheduler> {

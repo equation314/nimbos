@@ -1,61 +1,12 @@
-#![allow(dead_code)]
-
 use alloc::vec::Vec;
-use core::ops::Range;
 
 use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
 use crate::config::MEMORY_END;
 use crate::sync::SpinNoIrqLock;
+use crate::utils::FreeListAllocator;
 
 static FRAME_ALLOCATOR: SpinNoIrqLock<FreeListAllocator> =
     SpinNoIrqLock::new(FreeListAllocator::empty());
-
-trait FrameAllocator {
-    fn alloc(&mut self) -> Option<usize>;
-    fn dealloc(&mut self, value: usize);
-}
-
-pub struct FreeListAllocator {
-    range: Range<usize>,
-    current: usize,
-    free_list: Vec<usize>,
-}
-
-impl FreeListAllocator {
-    const fn empty() -> Self {
-        Self {
-            range: 0..0,
-            current: 0,
-            free_list: Vec::new(),
-        }
-    }
-
-    fn init(&mut self, start: usize, end: usize) {
-        self.range = start..end;
-        self.current = start;
-    }
-}
-
-impl FrameAllocator for FreeListAllocator {
-    fn alloc(&mut self) -> Option<usize> {
-        if let Some(value) = self.free_list.pop() {
-            Some(value)
-        } else if self.current >= self.range.end {
-            None
-        } else {
-            self.current += 1;
-            Some(self.current - 1)
-        }
-    }
-
-    fn dealloc(&mut self, value: usize) {
-        // validity check
-        assert!(self.range.contains(&value));
-        assert!(!self.free_list.contains(&value));
-        // recycle
-        self.free_list.push(value);
-    }
-}
 
 #[derive(Debug)]
 pub struct PhysFrame {
@@ -98,10 +49,9 @@ pub fn init_frame_allocator() {
     }
     let start_paddr = PhysAddr::new(virt_to_phys(ekernel as usize)).align_up();
     let end_paddr = PhysAddr::new(MEMORY_END).align_down();
-    FRAME_ALLOCATOR.lock().init(
-        start_paddr.as_usize() / PAGE_SIZE,
-        end_paddr.as_usize() / PAGE_SIZE,
-    );
+    FRAME_ALLOCATOR
+        .lock()
+        .init(start_paddr.as_usize() / PAGE_SIZE..end_paddr.as_usize() / PAGE_SIZE);
 }
 
 #[allow(unused)]

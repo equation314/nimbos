@@ -1,8 +1,7 @@
 use alloc::sync::Arc;
 use core::cell::Cell;
 
-use super::{CurrentTask, Task};
-use crate::arch;
+use super::structs::{CurrentTask, Task};
 use crate::config::MAX_CPUS;
 use crate::sync::LazyInit;
 
@@ -28,7 +27,7 @@ impl PerCpu {
     }
 
     pub fn current<'a>() -> &'a Self {
-        unsafe { &*(arch::thread_pointer() as *const Self) }
+        unsafe { &*(crate::arch::thread_pointer() as *const Self) }
     }
 
     pub fn idle_task<'a>() -> &'a Arc<Task> {
@@ -36,7 +35,7 @@ impl PerCpu {
     }
 
     pub fn current_task(&self) -> CurrentTask {
-        unsafe { CurrentTask((*self.current_task.as_ptr()).clone()) }
+        unsafe { CurrentTask::from((*self.current_task.as_ptr()).clone()) }
     }
 
     pub fn set_current_task(&self, task: Arc<Task>) {
@@ -48,5 +47,5 @@ impl PerCpu {
 pub(super) fn init_percpu() {
     let cpu_id = 0;
     CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
-    unsafe { arch::set_thread_pointer(&*CPUS[cpu_id] as *const PerCpu as usize) };
+    unsafe { crate::arch::set_thread_pointer(&*CPUS[cpu_id] as *const PerCpu as usize) };
 }
