@@ -20,9 +20,8 @@ impl<S: Scheduler> TaskManager<S> {
         }
     }
 
-    pub fn spawn(&mut self, t: Task) {
+    pub fn spawn(&mut self, t: Arc<Task>) {
         assert!(t.state.get() == TaskState::Ready);
-        let t = Arc::new(t);
         self.scheduler.add_ready_task(&t);
         self.tasks.push(t);
     }

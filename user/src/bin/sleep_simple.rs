@@ -18,6 +18,6 @@ pub fn main() -> i32 {
         end,
         end - start
     );
-    println!("r_sleep passed!");
+    println!("simple_sleep passed!");
     0
 }

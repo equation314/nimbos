@@ -45,30 +45,33 @@ pub enum IrqHandlerResult {
 }
 
 #[no_mangle]
-fn invalid_exception(cx: &mut TrapFrame, kind: TrapKind, source: TrapSource) {
+fn invalid_exception(tf: &mut TrapFrame, kind: TrapKind, source: TrapSource) {
     panic!(
         "Invalid exception {:?} from {:?}:\n{:#x?}",
-        kind, source, cx
+        kind, source, tf
     );
 }
 
 #[no_mangle]
-fn handle_sync_exception(cx: &mut TrapFrame) {
+fn handle_sync_exception(tf: &mut TrapFrame) {
     let esr = ESR_EL1.extract();
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
-            println!("[kernel] Unknown exception @ {:#x}, kernel killed it.", cx.elr);
+            println!(
+                "[kernel] Unknown exception @ {:#x}, kernel killed it.",
+                tf.elr
+            );
             CurrentTask::get().exit(-1);
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
-            cx.r[0] = syscall(cx.r[8] as _, [cx.r[0] as _, cx.r[1] as _, cx.r[2] as _]) as u64
+            tf.r[0] = syscall(tf.r[8] as _, [tf.r[0] as _, tf.r[1] as _, tf.r[2] as _], tf) as u64
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
             let iss = esr.read(ESR_EL1::ISS);
             println!(
                 "[kernel] Data Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}, kernel killed it.",
-                cx.elr,
+                tf.elr,
                 FAR_EL1.get(),
                 iss
             );
@@ -79,7 +82,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
             let iss = esr.read(ESR_EL1::ISS);
             println!(
                 "[kernel] Instruction Abort @ {:#x}, FAR = {:#x}, ISS = {:#x}, kernel killed it.",
-                cx.elr,
+                tf.elr,
                 FAR_EL1.get(),
                 iss
             );
@@ -88,7 +91,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
         _ => {
             panic!(
                 "Unsupported synchronous exception @ {:#x}: ESR = {:#x} (EC {:#08b}, ISS {:#x})",
-                cx.elr,
+                tf.elr,
                 esr.get(),
                 esr.read(ESR_EL1::EC),
                 esr.read(ESR_EL1::ISS),
@@ -98,7 +101,7 @@ fn handle_sync_exception(cx: &mut TrapFrame) {
 }
 
 #[no_mangle]
-fn handle_irq_exception(_cx: &mut TrapFrame) {
+fn handle_irq_exception(_tf: &mut TrapFrame) {
     if crate::gicv2::handle_irq() == IrqHandlerResult::Reschedule {
         CurrentTask::get().yield_now();
     }

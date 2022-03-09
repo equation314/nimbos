@@ -33,6 +33,16 @@ impl PhysFrame {
     pub fn zero(&mut self) {
         unsafe { core::ptr::write_bytes(self.start_paddr.into_kvaddr().as_mut_ptr(), 0, PAGE_SIZE) }
     }
+
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.start_paddr.into_kvaddr().as_ptr(), PAGE_SIZE) }
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            core::slice::from_raw_parts_mut(self.start_paddr.into_kvaddr().as_mut_ptr(), PAGE_SIZE)
+        }
+    }
 }
 
 impl Drop for PhysFrame {

@@ -34,7 +34,7 @@ pub fn exit(exit_code: i32) -> isize {
     sys_exit(exit_code)
 }
 
-pub fn yield_now() -> isize {
+pub fn sched_yield() -> isize {
     sys_yield()
 }
 
@@ -58,7 +58,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
             -2 => {
-                yield_now();
+                sched_yield();
             }
             // -1 or a real pid
             exit_pid => return exit_pid,
@@ -70,7 +70,7 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(pid as isize, exit_code as *mut _) {
             -2 => {
-                yield_now();
+                sched_yield();
             }
             // -1 or a real pid
             exit_pid => return exit_pid,

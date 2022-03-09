@@ -71,6 +71,29 @@ impl MapArea {
         }
     }
 
+    pub fn clone(&self) -> Self {
+        let mapper = match &self.mapper {
+            Mapper::Offset(off) => Mapper::Offset(*off),
+            Mapper::Framed(orig_frames) => {
+                let mut new_frames = BTreeMap::new();
+                for (&vaddr, orig_frame) in orig_frames {
+                    let mut new_frame = PhysFrame::alloc().unwrap();
+                    new_frame
+                        .as_slice_mut()
+                        .copy_from_slice(orig_frame.as_slice());
+                    new_frames.insert(vaddr, new_frame);
+                }
+                Mapper::Framed(new_frames)
+            }
+        };
+        Self {
+            start: self.start,
+            size: self.size,
+            flags: self.flags,
+            mapper,
+        }
+    }
+
     pub fn map(&mut self, vaddr: VirtAddr) -> PhysAddr {
         assert!(vaddr.is_aligned());
         match &mut self.mapper {
@@ -90,7 +113,7 @@ impl MapArea {
 
     pub fn write_data(&mut self, offset: usize, data: &[u8]) {
         assert!(offset < self.size);
-        assert!(offset + data.len() < self.size);
+        assert!(offset + data.len() <= self.size);
         let mut start = offset;
         let mut remain = data.len();
         let mut processed = 0;
@@ -144,6 +167,16 @@ impl MemorySet {
     pub unsafe fn activate(&self, is_kernel: bool) {
         let root = self.pt.root_paddr().as_usize();
         arch::activate_paging(root, is_kernel);
+    }
+}
+
+impl Clone for MemorySet {
+    fn clone(&self) -> Self {
+        let mut ms = Self::new();
+        for area in self.areas.values() {
+            ms.insert(area.clone());
+        }
+        ms
     }
 }
 

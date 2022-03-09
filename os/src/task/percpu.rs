@@ -18,7 +18,7 @@ unsafe impl Sync for PerCpu {}
 
 impl PerCpu {
     fn new(id: usize) -> Self {
-        let idle_task = Arc::new(Task::new_idle());
+        let idle_task = Task::new_idle();
         Self {
             _id: id,
             current_task: Cell::new(idle_task.clone()),

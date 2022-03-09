@@ -6,6 +6,8 @@ mod switch;
 
 pub use structs::CurrentTask;
 
+use alloc::sync::Arc;
+
 use self::manager::TASK_MANAGER;
 use self::structs::Task;
 use crate::loader;
@@ -30,6 +32,10 @@ pub fn init() {
         let (entry, ustack_top, ms) = loader::load_app(i);
         m.spawn(Task::new_user(entry, ustack_top, ms));
     }
+}
+
+pub fn spawn_task(task: Arc<Task>) {
+    TASK_MANAGER.lock().spawn(task);
 }
 
 pub fn run() -> ! {

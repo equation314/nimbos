@@ -3,7 +3,7 @@ use core::arch::asm;
 use cortex_a::registers::SPSR_EL1;
 
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct TrapFrame {
     /// General-purpose registers (R0..R30).
     pub r: [u64; 31],
@@ -28,6 +28,12 @@ impl TrapFrame {
                 .value, // enable IRQ, mask others
             ..Default::default()
         }
+    }
+
+    pub fn new_fork(&self) -> Self {
+        let mut tf = *self;
+        tf.r[0] = 0; // for child process, fork returns 0
+        tf
     }
 
     pub unsafe fn exec(&self, kstack_top: usize) -> ! {
