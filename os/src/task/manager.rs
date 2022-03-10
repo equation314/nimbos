@@ -4,7 +4,7 @@ use core::cell::UnsafeCell;
 
 use super::percpu::PerCpu;
 use super::schedule::{Scheduler, SimpleScheduler};
-use super::structs::{CurrentTask, Task, TaskState};
+use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
 use crate::sync::{LazyInit, SpinNoIrqLock};
 
 pub struct TaskManager<S: Scheduler> {
@@ -26,28 +26,32 @@ impl<S: Scheduler> TaskManager<S> {
         self.tasks.push(t);
     }
 
-    fn switch_to(&self, curr_task: &Arc<Task>, next_task: &Arc<Task>) {
+    fn switch_to(&self, curr_task: &Arc<Task>, next_task: Arc<Task>) {
         next_task.state.set(TaskState::Running);
-        if Arc::ptr_eq(curr_task, next_task) {
+        if Arc::ptr_eq(curr_task, &next_task) {
             return;
         }
-        PerCpu::current().set_current_task(next_task.clone());
+
+        let page_table_root = next_task.page_table_root.as_usize();
+        let curr_ctx_ptr = curr_task.ctx.as_ptr();
+        let next_ctx_ptr = next_task.ctx.as_ptr();
+
+        // Decrement the strong reference count of `curr_task` and `next_task`,
+        // but don't drop at here.
+        assert!(Arc::strong_count(curr_task) > 1);
+        assert!(Arc::strong_count(&next_task) > 1);
+        PerCpu::current().set_current_task(next_task);
+
         unsafe {
-            if let Some(ms) = &next_task.memory_set {
-                // for user task, set TTBR0 to the user page table root
-                ms.activate(false);
-            } else {
-                // for kernel task, disable TTBR0 translation
-                crate::arch::activate_paging(0, false);
-            }
-            super::switch::context_switch(curr_task.ctx.as_mut(), next_task.ctx.as_ref());
+            crate::arch::activate_paging(page_table_root, false);
+            super::switch::context_switch(&mut *curr_ctx_ptr, &*next_ctx_ptr);
         }
     }
 
     fn resched(&mut self, curr_task: &CurrentTask) {
         assert!(curr_task.state.get() != TaskState::Running);
         if let Some(next_task) = self.scheduler.pick_next_task() {
-            self.switch_to(curr_task, &next_task);
+            self.switch_to(curr_task, next_task);
         } else {
             self.switch_to(curr_task, PerCpu::idle_task());
         }
@@ -64,12 +68,62 @@ impl<S: Scheduler> TaskManager<S> {
 
     pub fn exit_current(&mut self, curr_task: &CurrentTask, exit_code: i32) -> ! {
         assert!(!curr_task.is_idle());
+        assert!(!curr_task.is_root());
         assert!(curr_task.state.get() == TaskState::Running);
-        curr_task.state.set(TaskState::Exited);
+
+        curr_task.state.set(TaskState::Zombie);
         curr_task.exit_code.set(exit_code);
-        self.tasks.retain(|t| t.id != curr_task.id);
+
+        // Make all child tasks as the children of the root task
+        for c in curr_task.children.lock().iter() {
+            ROOT_TASK.add_child(c);
+        }
+        curr_task.children.lock().clear();
+
         self.resched(curr_task);
         unreachable!("task exited!");
+    }
+
+    pub fn clean_zombies(&mut self, curr_task: &CurrentTask) {
+        let mut children = curr_task.children.lock();
+        let old_len = children.len();
+        children.retain(|t| t.state.get() != TaskState::Zombie);
+        if children.len() < old_len {
+            self.tasks.retain(|t| {
+                if let Some(p) = t.parent.lock().upgrade() {
+                    if p.id == curr_task.id && t.state.get() == TaskState::Zombie {
+                        assert_eq!(Arc::strong_count(t), 1);
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+    }
+
+    #[allow(unused)]
+    pub fn dump(&self) {
+        println!(
+            "{:>4} {:>4} {:>6} {:>4}  STATE",
+            "PID", "PPID", "#CHILD", "#REF",
+        );
+        for t in &self.tasks {
+            let ref_count = Arc::strong_count(t);
+            let children_count = t.children.lock().len();
+            let state = t.state.get();
+            if let Some(p) = t.parent.lock().upgrade() {
+                println!(
+                    "{:>4} {:>4} {:>6} {:>4}  {:?}",
+                    t.id, p.id, children_count, ref_count, state
+                );
+            } else {
+                println!(
+                    "{:>4} {:>4} {:>6} {:>4}  {:?}",
+                    t.id, '-', children_count, ref_count, state
+                );
+            };
+        }
+        println!();
     }
 }
 
@@ -85,6 +139,10 @@ impl<T> TaskLockedCell<T> {
         Self {
             data: UnsafeCell::new(data),
         }
+    }
+
+    pub const fn as_ptr(&self) -> *mut T {
+        self.data.get()
     }
 
     pub fn get_mut(&mut self) -> &mut T {

@@ -4,12 +4,11 @@ use cortex_a::{asm, asm::barrier, registers::*};
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 
 use crate::arch;
-use crate::mm::{MemFlags, PageTableEntry, PhysAddr, PAGE_SIZE};
-
-const BOOT_STACK_SIZE: usize = PAGE_SIZE * 16;
+use crate::config::BOOT_KERNEL_STACK_SIZE;
+use crate::mm::{MemFlags, PageTableEntry, PhysAddr};
 
 #[link_section = ".bss.stack"]
-static mut BOOT_STACK: [u8; BOOT_STACK_SIZE] = [0; BOOT_STACK_SIZE];
+static mut BOOT_STACK: [u8; BOOT_KERNEL_STACK_SIZE] = [0; BOOT_KERNEL_STACK_SIZE];
 
 #[link_section = ".data.boot_page_table"]
 static mut BOOT_PT_L0: [PageTableEntry; 512] = [PageTableEntry::empty(); 512];

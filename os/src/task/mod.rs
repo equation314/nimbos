@@ -9,12 +9,25 @@ pub use structs::CurrentTask;
 use alloc::sync::Arc;
 
 use self::manager::TASK_MANAGER;
-use self::structs::Task;
+use self::structs::{Task, ROOT_TASK};
 use crate::loader;
 
 pub fn init() {
     percpu::init_percpu();
     manager::init();
+
+    ROOT_TASK.init_by(Task::new_kernel(
+        |_| loop {
+            let curr_task = CurrentTask::get();
+            TASK_MANAGER.lock().clean_zombies(&curr_task);
+            if curr_task.children.lock().len() == 0 {
+                crate::arch::wait_for_ints();
+            } else {
+                curr_task.yield_now();
+            }
+        },
+        0,
+    ));
 
     let test_kernel_task = |arg| {
         println!(
@@ -26,6 +39,7 @@ pub fn init() {
     };
 
     let mut m = TASK_MANAGER.lock();
+    m.spawn(ROOT_TASK.clone());
     m.spawn(Task::new_kernel(test_kernel_task, 0xdead));
     m.spawn(Task::new_kernel(test_kernel_task, 0xbeef));
     for i in 0..loader::get_app_count() {
@@ -41,9 +55,5 @@ pub fn spawn_task(task: Arc<Task>) {
 pub fn run() -> ! {
     crate::arch::enable_irqs();
     CurrentTask::get().yield_now(); // current task is idle at this time
-    println!("All applications completed!");
-    println!("Waiting for interrupts...");
-    loop {
-        crate::arch::wait_for_ints();
-    }
+    unreachable!("root task exit!");
 }

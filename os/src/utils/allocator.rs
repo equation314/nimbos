@@ -27,6 +27,11 @@ impl FreeListAllocator {
         ret
     }
 
+    #[allow(unused)]
+    pub fn available_space(&self) -> usize {
+        self.free_list.len() + self.range.end - self.next_available
+    }
+
     pub fn alloc(&mut self) -> Option<usize> {
         if let Some(value) = self.free_list.pop() {
             Some(value)

@@ -1,7 +1,11 @@
-use crate::pl011::console_putchar;
 use core::fmt::{self, Write};
 
+use crate::pl011::console_putchar;
+use crate::sync::Mutex;
+
 struct Stdout;
+
+static PRINT_LOCK: Mutex<()> = Mutex::new(());
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -13,6 +17,7 @@ impl Write for Stdout {
 }
 
 pub fn print(args: fmt::Arguments) {
+    let _locked = PRINT_LOCK.lock();
     Stdout.write_fmt(args).unwrap();
 }
 
@@ -25,6 +30,7 @@ macro_rules! print {
 
 #[macro_export]
 macro_rules! println {
+    () => { print!("\n") };
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }

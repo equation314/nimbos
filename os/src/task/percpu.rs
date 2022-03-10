@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
-use core::cell::Cell;
+use core::cell::UnsafeCell;
 
-use super::structs::{CurrentTask, Task};
+use super::structs::Task;
 use crate::config::MAX_CPUS;
 use crate::sync::LazyInit;
 
@@ -10,7 +10,7 @@ static CPUS: [LazyInit<PerCpu>; MAX_CPUS] = [LazyInit::new(); MAX_CPUS];
 /// Each CPU can only accesses its own `PerCpu` instance.
 pub struct PerCpu {
     _id: usize,
-    current_task: Cell<Arc<Task>>,
+    current_task: UnsafeCell<Arc<Task>>,
     idle_task: Arc<Task>,
 }
 
@@ -21,7 +21,7 @@ impl PerCpu {
         let idle_task = Task::new_idle();
         Self {
             _id: id,
-            current_task: Cell::new(idle_task.clone()),
+            current_task: UnsafeCell::new(idle_task.clone()),
             idle_task,
         }
     }
@@ -30,17 +30,22 @@ impl PerCpu {
         unsafe { &*(crate::arch::thread_pointer() as *const Self) }
     }
 
-    pub fn idle_task<'a>() -> &'a Arc<Task> {
-        &Self::current().idle_task
+    pub fn idle_task() -> Arc<Task> {
+        Self::current().idle_task.clone()
     }
 
-    pub fn current_task(&self) -> CurrentTask {
-        unsafe { CurrentTask::from((*self.current_task.as_ptr()).clone()) }
+    pub fn current_task<'a>(&self) -> &'a Arc<Task> {
+        // Safety: Even if there is an interrupt and task preemption after
+        // calling this method, the reference of `current_task` can keep unchanged
+        // since it will be restored after context switches.
+        unsafe { &*self.current_task.get() }
     }
 
     pub fn set_current_task(&self, task: Arc<Task>) {
+        // We must disable interrupts and task preemption.
         assert!(crate::arch::irqs_disabled());
-        self.current_task.set(task);
+        let old_task = core::mem::replace(unsafe { &mut *self.current_task.get() }, task);
+        drop(old_task)
     }
 }
 

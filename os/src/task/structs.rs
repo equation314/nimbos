@@ -5,10 +5,12 @@ use super::manager::{TaskLockedCell, TASK_MANAGER};
 use super::percpu::PerCpu;
 use super::switch::TaskContext;
 use crate::config::KERNEL_STACK_SIZE;
-use crate::mm::MemorySet;
-use crate::sync::{Mutex, SpinNoIrqLock};
+use crate::mm::{MemorySet, PhysAddr};
+use crate::sync::{LazyInit, Mutex, SpinNoIrqLock};
 use crate::trap::TrapFrame;
 use crate::utils::FreeListAllocator;
+
+pub static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
 
 enum EntryState {
     Kernel { pc: usize, arg: usize },
@@ -19,21 +21,22 @@ enum EntryState {
 pub enum TaskState {
     Ready,
     Running,
-    Exited,
+    Zombie,
 }
 
 pub struct Task {
     pub id: usize,
-    pub memory_set: Option<MemorySet>,
-    kstack: Box<Stack<KERNEL_STACK_SIZE>>,
+    pub page_table_root: PhysAddr,
+    pub memory_set: Mutex<Option<MemorySet>>,
+    kstack: Stack<KERNEL_STACK_SIZE>,
     entry: EntryState,
 
     pub state: TaskLockedCell<TaskState>,
     pub ctx: TaskLockedCell<TaskContext>,
     pub exit_code: TaskLockedCell<i32>,
 
-    parent: Mutex<Weak<Task>>,
-    children: Mutex<Vec<Arc<Task>>>,
+    pub parent: Mutex<Weak<Task>>,
+    pub children: Mutex<Vec<Arc<Task>>>,
 }
 
 lazy_static::lazy_static! {
@@ -49,8 +52,9 @@ impl Task {
         };
         Self {
             id,
-            memory_set: None,
-            kstack: Box::new(Stack::default()),
+            page_table_root: PhysAddr::new(0),
+            memory_set: Mutex::new(None),
+            kstack: Stack::default(),
             entry: EntryState::Kernel { pc: 0, arg: 0 },
 
             state: TaskLockedCell::new(TaskState::Ready),
@@ -60,6 +64,11 @@ impl Task {
             parent: Mutex::new(Weak::default()),
             children: Mutex::new(Vec::new()),
         }
+    }
+
+    pub fn add_child(self: &Arc<Self>, child: &Arc<Task>) {
+        *child.parent.lock() = Arc::downgrade(self);
+        self.children.lock().push(child.clone());
     }
 
     pub fn new_idle() -> Arc<Self> {
@@ -75,27 +84,37 @@ impl Task {
             arg,
         };
         t.ctx.get_mut().init(task_entry as _, t.kstack.top());
-        Arc::new(t)
+
+        let t = Arc::new(t);
+        if !t.is_root() {
+            ROOT_TASK.add_child(&t);
+        }
+        t
     }
 
     pub fn new_user(entry: usize, ustack_top: usize, ms: MemorySet) -> Arc<Self> {
         let mut t = Self::new_common(-1);
-        t.memory_set = Some(ms);
+        t.page_table_root = ms.page_table_root();
+        *t.memory_set.lock() = Some(ms);
         t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top)));
         t.ctx.get_mut().init(task_entry as _, t.kstack.top());
-        Arc::new(t)
+
+        let t = Arc::new(t);
+        ROOT_TASK.add_child(&t);
+        t
     }
 
     pub fn new_fork(self: &Arc<Self>, tf: &TrapFrame) -> Arc<Self> {
         assert!(!self.is_kernel_task());
         let mut t = Self::new_common(-1);
-        t.memory_set = self.memory_set.clone();
+        let ms = self.memory_set.lock().clone().unwrap();
+        t.page_table_root = ms.page_table_root();
+        *t.memory_set.lock() = Some(ms);
         t.entry = EntryState::User(Box::new(tf.new_fork()));
         t.ctx.get_mut().init(task_entry as _, t.kstack.top());
 
-        *t.parent.lock() = Arc::downgrade(self);
         let t = Arc::new(t);
-        self.children.lock().push(t.clone());
+        self.add_child(&t);
         t
     }
 
@@ -104,7 +123,11 @@ impl Task {
     }
 
     pub fn is_kernel_task(&self) -> bool {
-        self.memory_set.is_none()
+        self.page_table_root.as_usize() == 0
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.id == 1
     }
 
     pub fn is_idle(&self) -> bool {
@@ -137,15 +160,11 @@ fn task_entry() -> ! {
     }
 }
 
-pub struct CurrentTask(Arc<Task>);
+pub struct CurrentTask<'a>(pub &'a Arc<Task>);
 
-impl CurrentTask {
-    pub(super) fn from(task: Arc<Task>) -> Self {
-        Self(task)
-    }
-
+impl<'a> CurrentTask<'a> {
     pub fn get() -> Self {
-        PerCpu::current().current_task()
+        Self(PerCpu::current().current_task())
     }
 
     pub fn yield_now(&self) {
@@ -153,23 +172,23 @@ impl CurrentTask {
     }
 
     pub fn exit(&self, exit_code: i32) -> ! {
+        *self.memory_set.lock() = None; // drop memory set before lock
         TASK_MANAGER.lock().exit_current(self, exit_code)
     }
 }
 
-impl core::ops::Deref for CurrentTask {
+impl<'a> core::ops::Deref for CurrentTask<'a> {
     type Target = Arc<Task>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0
     }
 }
 
-#[repr(align(4096))]
-struct Stack<const N: usize>([u8; N]);
+struct Stack<const N: usize>(Box<[u8]>);
 
 impl<const N: usize> Stack<N> {
-    pub const fn default() -> Self {
-        Self([0; N])
+    pub fn default() -> Self {
+        Self(Box::from(alloc::vec![0; N]))
     }
 
     pub fn top(&self) -> usize {

@@ -164,9 +164,8 @@ impl MemorySet {
         self.areas.clear();
     }
 
-    pub unsafe fn activate(&self, is_kernel: bool) {
-        let root = self.pt.root_paddr().as_usize();
-        arch::activate_paging(root, is_kernel);
+    pub fn page_table_root(&self) -> PhysAddr {
+        self.pt.root_paddr()
     }
 }
 
@@ -247,9 +246,10 @@ pub fn init_paging() {
         );
     }
 
+    let page_table_root = ms.page_table_root();
     KERNEL_SPACE.init_by(ms);
     unsafe {
-        KERNEL_SPACE.activate(true); // set TTBR1 to kernel page table
+        arch::activate_paging(page_table_root.as_usize(), true); // set TTBR0 to zero for kernel tasks
         arch::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
     }
 }
