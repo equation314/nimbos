@@ -21,12 +21,6 @@ impl FreeListAllocator {
         self.range = range;
     }
 
-    pub fn new(range: Range<usize>) -> Self {
-        let mut ret = Self::empty();
-        ret.init(range);
-        ret
-    }
-
     #[allow(unused)]
     pub fn available_space(&self) -> usize {
         self.free_list.len() + self.range.end - self.next_available

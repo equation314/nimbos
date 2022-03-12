@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use crate::mm::PhysAddr;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct TaskContext {
@@ -17,6 +19,7 @@ pub struct TaskContext {
     pub r28: u64,
     pub r29: u64,
     pub lr: u64, // r30
+    pub ttbr0_el1: u64,
 }
 
 impl TaskContext {
@@ -24,14 +27,22 @@ impl TaskContext {
         unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
     }
 
-    pub fn init(&mut self, entry: usize, kstack_top: usize) {
+    pub fn init(&mut self, entry: usize, kstack_top: usize, page_table_root: PhysAddr) {
         self.sp = kstack_top as u64;
         self.lr = entry as u64;
+        self.ttbr0_el1 = page_table_root.as_usize() as u64;
+    }
+
+    pub fn switch_to(&mut self, next_ctx: &Self) {
+        unsafe {
+            crate::arch::activate_paging(next_ctx.ttbr0_el1 as usize, false);
+            context_switch(self, next_ctx)
+        }
     }
 }
 
 #[naked]
-pub unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
+unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
     asm!(
         "
         // save old context (callee-saved registers)

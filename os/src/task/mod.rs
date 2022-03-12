@@ -31,7 +31,7 @@ pub fn init() {
 
     let test_kernel_task = |arg| {
         println!(
-            "test kernel task: pid = {}, arg = {:#x}",
+            "test kernel task: pid = {:?}, arg = {:#x}",
             CurrentTask::get().pid(),
             arg
         );

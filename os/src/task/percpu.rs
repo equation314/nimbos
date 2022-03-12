@@ -30,8 +30,8 @@ impl PerCpu {
         unsafe { &*(crate::arch::thread_pointer() as *const Self) }
     }
 
-    pub fn idle_task() -> Arc<Task> {
-        Self::current().idle_task.clone()
+    pub fn idle_task<'a>() -> &'a Arc<Task> {
+        &Self::current().idle_task
     }
 
     pub fn current_task<'a>(&self) -> &'a Arc<Task> {
