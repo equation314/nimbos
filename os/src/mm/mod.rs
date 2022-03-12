@@ -3,11 +3,13 @@ mod frame_allocator;
 mod heap_allocator;
 mod memory_set;
 mod page_table;
+mod uaccess;
 
 pub use address::{PhysAddr, VirtAddr};
 pub use frame_allocator::PhysFrame;
 pub use memory_set::{remap_test, MapArea, MemorySet};
 pub use page_table::{PageTable, PageTableEntry};
+pub use uaccess::{copy_from_user, copy_to_user};
 
 pub const PAGE_SIZE: usize = 0x1000;
 

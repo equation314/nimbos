@@ -4,7 +4,7 @@ mod schedule;
 mod structs;
 mod switch;
 
-pub use structs::CurrentTask;
+pub use structs::{CurrentTask, TaskId};
 
 use alloc::sync::Arc;
 
@@ -19,7 +19,8 @@ pub fn init() {
     ROOT_TASK.init_by(Task::new_kernel(
         |_| loop {
             let curr_task = CurrentTask::get();
-            TASK_MANAGER.lock().clean_zombies(&curr_task);
+            let mut exit_code = 0;
+            while curr_task.waitpid(-1, &mut exit_code) > 0 {}
             if curr_task.children.lock().len() == 0 {
                 crate::arch::wait_for_ints();
             } else {

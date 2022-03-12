@@ -77,24 +77,11 @@ impl<S: Scheduler> TaskManager<S> {
         unreachable!("task exited!");
     }
 
-    pub fn clean_zombies(&mut self, curr_task: &CurrentTask) {
-        let mut children = curr_task.children.lock();
-        children.retain(|t| {
-            if t.state() == TaskState::Zombie {
-                assert_eq!(Arc::strong_count(t), 1);
-                false
-            } else {
-                true
-            }
-        });
-    }
-
     #[allow(unused)]
     pub fn dump_all_tasks(&self) {
         if ROOT_TASK.children.lock().len() == 0 {
             return;
         }
-
         println!(
             "{:>4} {:>4} {:>6} {:>4}  STATE",
             "PID", "PPID", "#CHILD", "#REF",

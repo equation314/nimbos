@@ -12,6 +12,6 @@ pub fn main() -> i32 {
         sched_yield();
         println!("Back in process {}, iteration {}.", getpid(), i);
     }
-    println!("yield pass.");
+    println!("yield passed!");
     0
 }

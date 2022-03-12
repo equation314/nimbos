@@ -223,6 +223,27 @@ impl<'a> CurrentTask<'a> {
         *self.vm.lock() = None; // drop memory set before lock
         TASK_MANAGER.lock().exit_current(self, exit_code)
     }
+
+    pub fn waitpid(&self, pid: isize, exit_code: &mut i32) -> isize {
+        let mut children = self.children.lock();
+        let mut found_pid = false;
+        for (idx, t) in children.iter().enumerate() {
+            if pid == -1 || t.pid().as_usize() == pid as usize {
+                found_pid = true;
+                if t.state() == TaskState::Zombie {
+                    let child = children.remove(idx);
+                    assert_eq!(Arc::strong_count(&child), 1);
+                    *exit_code = child.exit_code();
+                    return child.pid().as_usize() as isize;
+                }
+            }
+        }
+        if found_pid {
+            -2
+        } else {
+            -1
+        }
+    }
 }
 
 impl<'a> core::ops::Deref for CurrentTask<'a> {
