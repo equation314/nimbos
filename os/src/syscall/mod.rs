@@ -18,14 +18,14 @@ use crate::trap::TrapFrame;
 pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize {
     arch::enable_irqs();
     let ret = match syscall_id {
-        SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+        SYSCALL_WRITE => sys_write(args[0], args[1].into(), args[2]),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
         SYSCALL_YIELD => sys_yield(),
         SYSCALL_GET_TIME => sys_get_time(),
         SYSCALL_GETPID => sys_getpid(),
         SYSCALL_FORK => sys_fork(tf),
-        SYSCALL_EXEC => sys_exec(args[0] as *const u8),
-        SYSCALL_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
+        SYSCALL_EXEC => sys_exec(args[0].into(), tf),
+        SYSCALL_WAITPID => sys_waitpid(args[0] as isize, args[1].into()),
         _ => {
             println!("Unsupported syscall_id: {}", syscall_id);
             crate::task::CurrentTask::get().exit(-1);

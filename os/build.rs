@@ -33,6 +33,7 @@ _app_count:
     )?;
 
     for i in 0..apps.len() {
+        writeln!(f, r#"    .quad app_{}_name"#, i)?;
         writeln!(f, r#"    .quad app_{}_start"#, i)?;
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
@@ -43,6 +44,8 @@ _app_count:
             f,
             r#"
     .section .data
+app_{0}_name:
+    .string "{1}"
     .align 3
 app_{0}_start:
     .incbin "{2}{1}"

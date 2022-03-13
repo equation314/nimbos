@@ -16,7 +16,11 @@ pub fn main() -> i32 {
         100
     } else {
         // parent process
-        println!("hello parent process, parent pid = {}, child pid = {}!", getpid(), pid);
+        println!(
+            "hello parent process, parent pid = {}, child pid = {}!",
+            getpid(),
+            pid
+        );
         0
     }
 }

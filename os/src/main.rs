@@ -49,5 +49,6 @@ pub fn rust_main() -> ! {
     timer::init();
 
     task::init();
+    loader::list_apps();
     task::run();
 }

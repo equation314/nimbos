@@ -11,5 +11,5 @@ fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
     } else {
         println!("Panicked: {}", err);
     }
-    loop {}
+    crate::exit(1);
 }

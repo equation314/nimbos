@@ -10,7 +10,6 @@ use alloc::sync::Arc;
 
 use self::manager::TASK_MANAGER;
 use self::structs::{Task, ROOT_TASK};
-use crate::loader;
 
 pub fn init() {
     percpu::init_percpu();
@@ -43,10 +42,7 @@ pub fn init() {
     m.spawn(ROOT_TASK.clone());
     m.spawn(Task::new_kernel(test_kernel_task, 0xdead));
     m.spawn(Task::new_kernel(test_kernel_task, 0xbeef));
-    for i in 0..loader::get_app_count() {
-        let (entry, ustack_top, ms) = loader::load_app(i);
-        m.spawn(Task::new_user(entry, ustack_top, ms));
-    }
+    m.spawn(Task::new_user("usertests"));
 }
 
 pub fn spawn_task(task: Arc<Task>) {

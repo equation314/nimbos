@@ -3,7 +3,7 @@
 
 #[macro_use]
 extern crate user_lib;
-use user_lib::{exit, fork, wait, waitpid, sched_yield};
+use user_lib::{exit, fork, sched_yield, wait, waitpid};
 
 const MAGIC: i32 = -0x10384;
 

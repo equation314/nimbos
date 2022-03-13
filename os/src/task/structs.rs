@@ -6,6 +6,7 @@ use super::manager::{TaskLockedCell, TASK_MANAGER};
 use super::percpu::PerCpu;
 use super::switch::TaskContext;
 use crate::config::KERNEL_STACK_SIZE;
+use crate::loader;
 use crate::mm::{MemorySet, PhysAddr};
 use crate::sync::{LazyInit, Mutex};
 use crate::trap::TrapFrame;
@@ -119,7 +120,11 @@ impl Task {
         t
     }
 
-    pub fn new_user(entry: usize, ustack_top: usize, vm: MemorySet) -> Arc<Self> {
+    pub fn new_user(path: &str) -> Arc<Self> {
+        let elf_data = loader::get_app_data_by_name(path).expect("no such app: usertests");
+        let mut vm = MemorySet::new();
+        let (entry, ustack_top) = vm.load_user(elf_data);
+
         let mut t = Self::new_common(TaskId::alloc(), false);
         t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top)));
         t.ctx
@@ -222,6 +227,20 @@ impl<'a> CurrentTask<'a> {
     pub fn exit(&self, exit_code: i32) -> ! {
         *self.vm.lock() = None; // drop memory set before lock
         TASK_MANAGER.lock().exit_current(self, exit_code)
+    }
+
+    pub fn exec(&self, path: &str, tf: &mut TrapFrame) -> isize {
+        if let Some(elf_data) = loader::get_app_data_by_name(path) {
+            let mut vm = self.vm.lock();
+            let vm = vm.get_or_insert(MemorySet::new());
+            vm.clear();
+            let (entry, ustack_top) = vm.load_user(elf_data);
+            *tf = TrapFrame::new_user(entry, ustack_top);
+            crate::arch::flush_tlb_all();
+            0
+        } else {
+            -1
+        }
     }
 
     pub fn waitpid(&self, pid: isize, exit_code: &mut i32) -> isize {

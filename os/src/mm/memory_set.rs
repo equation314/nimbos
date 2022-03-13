@@ -4,7 +4,7 @@ use core::fmt;
 use super::address::{align_down, is_aligned, phys_to_virt, virt_to_phys};
 use super::{MemFlags, PageTable, PhysFrame, PAGE_SIZE};
 use crate::arch;
-use crate::config::{MEMORY_END, MMIO_REGIONS};
+use crate::config::{MEMORY_END, MMIO_REGIONS, USER_STACK_BASE, USER_STACK_SIZE};
 use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
 
@@ -155,6 +155,77 @@ impl MemorySet {
                 );
             }
         }
+    }
+
+    pub fn load_user(&mut self, elf_data: &[u8]) -> (usize, usize) {
+        use xmas_elf::program::{Flags, SegmentData, Type};
+        use xmas_elf::{header, ElfFile};
+
+        let elf = ElfFile::new(elf_data).expect("invalid ELF file");
+        assert_eq!(
+            elf.header.pt1.class(),
+            header::Class::SixtyFour,
+            "64-bit ELF required"
+        );
+        assert_eq!(
+            elf.header.pt2.type_().as_type(),
+            header::Type::Executable,
+            "ELF is not an executable object"
+        );
+        assert_eq!(
+            elf.header.pt2.machine().as_machine(),
+            header::Machine::AArch64,
+            "invalid ELF arch"
+        );
+
+        impl From<Flags> for MemFlags {
+            fn from(f: Flags) -> Self {
+                let mut ret = MemFlags::USER;
+                if f.is_read() {
+                    ret |= MemFlags::READ;
+                }
+                if f.is_write() {
+                    ret |= MemFlags::WRITE;
+                }
+                if f.is_execute() {
+                    ret |= MemFlags::EXECUTE;
+                }
+                ret
+            }
+        }
+
+        for ph in elf.program_iter() {
+            if ph.get_type() != Ok(Type::Load) {
+                continue;
+            }
+            let vaddr = VirtAddr::new(ph.virtual_addr() as usize);
+            let offset = vaddr.page_offset();
+            let area_start = vaddr.align_down();
+            let area_end = VirtAddr::new((ph.virtual_addr() + ph.mem_size()) as usize).align_up();
+            let data = match ph.get_data(&elf).unwrap() {
+                SegmentData::Undefined(data) => data,
+                _ => panic!("failed to get ELF segment data"),
+            };
+
+            let mut area = MapArea::new_framed(
+                area_start,
+                area_end.as_usize() - area_start.as_usize(),
+                ph.flags().into(),
+            );
+            area.write_data(offset, data);
+            self.insert(area);
+            crate::arch::flush_icache_all();
+        }
+        // user stack
+        self.insert(MapArea::new_framed(
+            VirtAddr::new(USER_STACK_BASE),
+            USER_STACK_SIZE,
+            MemFlags::READ | MemFlags::WRITE | MemFlags::USER,
+        ));
+
+        let entry = elf.header.pt2.entry_point() as usize;
+        let ustack_top = USER_STACK_BASE + USER_STACK_SIZE;
+        (entry, ustack_top)
     }
 
     pub fn clear(&mut self) {
