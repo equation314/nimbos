@@ -30,7 +30,7 @@ impl<S: Scheduler> TaskManager<S> {
         let next_ctx_ptr = next_task.context().as_ptr();
 
         // Decrement the strong reference count of `curr_task` and `next_task`,
-        // but won't drop them until `clean_zombies()` is called,
+        // but won't drop them until `waitpid()` is called,
         assert!(Arc::strong_count(curr_task) > 1);
         assert!(Arc::strong_count(&next_task) > 1);
         PerCpu::current().set_current_task(next_task);

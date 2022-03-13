@@ -5,10 +5,11 @@ use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite};
 
 use crate::mm::{PhysAddr, VirtAddr};
+use crate::sync::Mutex;
 
 const UART_BASE: PhysAddr = PhysAddr::new(0x0900_0000);
 
-static UART: Pl011Uart = Pl011Uart::new(UART_BASE.into_kvaddr());
+static UART: Mutex<Pl011Uart> = Mutex::new(Pl011Uart::new(UART_BASE.into_kvaddr()));
 
 register_structs! {
     Pl011UartRegs {
@@ -38,8 +39,20 @@ impl Pl011Uart {
         while self.regs().fr.get() & (1 << 5) != 0 {}
         self.regs().dr.set(c as u32);
     }
+
+    fn getchar(&self) -> Option<u8> {
+        if self.regs().fr.get() & (1 << 4) == 0 {
+            Some(self.regs().dr.get() as u8)
+        } else {
+            None
+        }
+    }
 }
 
 pub fn console_putchar(c: u8) {
-    UART.putchar(c);
+    UART.lock().putchar(c);
+}
+
+pub fn console_getchar() -> Option<u8> {
+    UART.lock().getchar()
 }

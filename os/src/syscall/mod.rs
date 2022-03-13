@@ -1,3 +1,4 @@
+const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_YIELD: usize = 124;
@@ -18,6 +19,7 @@ use crate::trap::TrapFrame;
 pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize {
     arch::enable_irqs();
     let ret = match syscall_id {
+        SYSCALL_READ => sys_read(args[0], args[1].into(), args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1].into(), args[2]),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
         SYSCALL_YIELD => sys_yield(),

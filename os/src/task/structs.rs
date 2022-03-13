@@ -121,7 +121,7 @@ impl Task {
     }
 
     pub fn new_user(path: &str) -> Arc<Self> {
-        let elf_data = loader::get_app_data_by_name(path).expect("no such app: usertests");
+        let elf_data = loader::get_app_data_by_name(path).expect("new_user: no such app");
         let mut vm = MemorySet::new();
         let (entry, ustack_top) = vm.load_user(elf_data);
 
@@ -230,6 +230,7 @@ impl<'a> CurrentTask<'a> {
     }
 
     pub fn exec(&self, path: &str, tf: &mut TrapFrame) -> isize {
+        assert!(!self.is_kernel_task());
         if let Some(elf_data) = loader::get_app_data_by_name(path) {
             let mut vm = self.vm.lock();
             let vm = vm.get_or_insert(MemorySet::new());
