@@ -71,7 +71,7 @@ impl MapArea {
         }
     }
 
-    pub fn clone(&self) -> Self {
+    pub fn dup(&self) -> Self {
         let mapper = match &self.mapper {
             Mapper::Offset(off) => Mapper::Offset(*off),
             Mapper::Framed(orig_frames) => {
@@ -235,18 +235,16 @@ impl MemorySet {
         self.areas.clear();
     }
 
-    pub fn page_table_root(&self) -> PhysAddr {
-        self.pt.root_paddr()
-    }
-}
-
-impl Clone for MemorySet {
-    fn clone(&self) -> Self {
+    pub fn dup(&self) -> Self {
         let mut ms = Self::new();
         for area in self.areas.values() {
-            ms.insert(area.clone());
+            ms.insert(area.dup());
         }
         ms
+    }
+
+    pub fn page_table_root(&self) -> PhysAddr {
+        self.pt.root_paddr()
     }
 }
 

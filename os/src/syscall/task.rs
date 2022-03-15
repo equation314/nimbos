@@ -22,6 +22,13 @@ pub fn sys_getpid() -> isize {
     CurrentTask::get().pid().as_usize() as isize
 }
 
+pub fn sys_clone(newsp: usize, tf: &TrapFrame) -> isize {
+    let new_task = CurrentTask::get().new_clone(newsp, tf);
+    let pid = new_task.pid().as_usize() as isize;
+    spawn_task(new_task);
+    pid
+}
+
 pub fn sys_fork(tf: &TrapFrame) -> isize {
     let new_task = CurrentTask::get().new_fork(tf);
     let pid = new_task.pid().as_usize() as isize;

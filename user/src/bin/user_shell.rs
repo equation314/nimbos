@@ -24,7 +24,7 @@ pub fn main() -> i32 {
         let c = getchar();
         match c {
             LF | CR => {
-                println!("");
+                println!();
                 if cursor > 0 {
                     line[cursor] = b'\0';
                     let pid = fork();

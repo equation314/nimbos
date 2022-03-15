@@ -30,6 +30,13 @@ impl TrapFrame {
         }
     }
 
+    pub fn new_clone(&self, ustack_top: usize) -> Self {
+        let mut tf = *self;
+        tf.usp = ustack_top as _;
+        tf.r[0] = 0; // for child thread, clone returns 0
+        tf
+    }
+
     pub fn new_fork(&self) -> Self {
         let mut tf = *self;
         tf.r[0] = 0; // for child process, fork returns 0

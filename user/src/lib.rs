@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(linkage)]
+#![feature(asm_const)]
 #![feature(panic_info_message)]
 
 #[macro_use]
@@ -82,4 +83,17 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
     }
+}
+
+pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> usize {
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    const MAX_THREADS: usize = 16;
+    const THREAD_STACK_SIZE: usize = 4096 * 4; // 16K
+    static mut THREAD_STACKS: [[u8; THREAD_STACK_SIZE]; MAX_THREADS] =
+        [[0; THREAD_STACK_SIZE]; MAX_THREADS];
+    static THREAD_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    let thread_id = THREAD_COUNT.fetch_add(1, Ordering::AcqRel);
+    let newsp = unsafe { THREAD_STACKS[thread_id].as_ptr_range().end as usize };
+    sys_clone(entry, arg, newsp)
 }

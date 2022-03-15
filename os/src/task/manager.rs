@@ -91,11 +91,12 @@ impl<S: Scheduler> TaskManager<S> {
             let ref_count = Arc::strong_count(t);
             let children_count = t.children.lock().len();
             let state = t.state();
+            let shared = if t.is_shared_with_parent() { 'S' } else { ' ' };
             if let Some(p) = t.parent.lock().upgrade() {
                 let ppid = p.pid().as_usize();
                 println!(
-                    "{:>4} {:>4} {:>6} {:>4}  {:?}",
-                    pid, ppid, children_count, ref_count, state
+                    "{:>4}{}{:>4} {:>6} {:>4}  {:?}",
+                    pid, shared, ppid, children_count, ref_count, state
                 );
             } else {
                 println!(

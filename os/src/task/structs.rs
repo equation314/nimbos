@@ -32,6 +32,7 @@ pub enum TaskState {
 pub struct Task {
     id: TaskId,
     is_kernel: bool,
+    is_shared: bool,
     state: AtomicU8,
     entry: EntryState,
     exit_code: AtomicI32,
@@ -39,7 +40,7 @@ pub struct Task {
     kstack: Stack<KERNEL_STACK_SIZE>,
     ctx: TaskLockedCell<TaskContext>,
 
-    vm: Mutex<Option<MemorySet>>,
+    vm: Option<Arc<Mutex<MemorySet>>>,
     pub parent: Mutex<Weak<Task>>,
     pub children: Mutex<Vec<Arc<Task>>>,
 }
@@ -75,10 +76,11 @@ impl From<u8> for TaskState {
 }
 
 impl Task {
-    fn new_common(id: TaskId, is_kernel: bool) -> Self {
+    fn new_common(id: TaskId) -> Self {
         Self {
             id,
-            is_kernel,
+            is_kernel: false,
+            is_shared: false,
             state: AtomicU8::new(TaskState::Ready as u8),
             entry: EntryState::Kernel { pc: 0, arg: 0 },
             exit_code: AtomicI32::new(0),
@@ -86,7 +88,7 @@ impl Task {
             kstack: Stack::default(),
             ctx: TaskLockedCell::new(TaskContext::default()),
 
-            vm: Mutex::new(None),
+            vm: None,
             parent: Mutex::new(Weak::default()),
             children: Mutex::new(Vec::new()),
         }
@@ -98,13 +100,15 @@ impl Task {
     }
 
     pub fn new_idle() -> Arc<Self> {
-        let t = Self::new_common(TaskId::IDLE_TASK_ID, true);
+        let mut t = Self::new_common(TaskId::IDLE_TASK_ID);
+        t.is_kernel = true;
         t.set_state(TaskState::Running);
         Arc::new(t)
     }
 
     pub fn new_kernel(entry: fn(usize) -> usize, arg: usize) -> Arc<Self> {
-        let mut t = Self::new_common(TaskId::alloc(), true);
+        let mut t = Self::new_common(TaskId::alloc());
+        t.is_kernel = true;
         t.entry = EntryState::Kernel {
             pc: entry as usize,
             arg,
@@ -125,34 +129,50 @@ impl Task {
         let mut vm = MemorySet::new();
         let (entry, ustack_top) = vm.load_user(elf_data);
 
-        let mut t = Self::new_common(TaskId::alloc(), false);
+        let mut t = Self::new_common(TaskId::alloc());
         t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top)));
         t.ctx
             .get_mut()
             .init(task_entry as _, t.kstack.top(), vm.page_table_root());
-        *t.vm.lock() = Some(vm);
+        t.vm = Some(Arc::new(Mutex::new(vm)));
 
         let t = Arc::new(t);
         ROOT_TASK.add_child(&t);
         t
     }
 
-    pub fn new_fork(self: &Arc<Self>, tf: &TrapFrame) -> Arc<Self> {
+    pub fn new_clone(self: &Arc<Self>, newsp: usize, tf: &TrapFrame) -> Arc<Self> {
         assert!(!self.is_kernel_task());
-        let mut t = Self::new_common(TaskId::alloc(), false);
-        let vm = self.vm.lock().clone().unwrap();
-        t.entry = EntryState::User(Box::new(tf.new_fork()));
+        let mut t = Self::new_common(TaskId::alloc());
+        t.is_shared = true;
+        let vm = self.vm.as_ref().unwrap().clone();
+        t.entry = EntryState::User(Box::new(tf.new_clone(newsp)));
         t.ctx
             .get_mut()
-            .init(task_entry as _, t.kstack.top(), vm.page_table_root());
-        *t.vm.lock() = Some(vm);
+            .init(task_entry as _, t.kstack.top(), vm.lock().page_table_root());
+        t.vm = Some(vm);
 
         let t = Arc::new(t);
         self.add_child(&t);
         t
     }
 
-    pub fn is_kernel_task(&self) -> bool {
+    pub fn new_fork(self: &Arc<Self>, tf: &TrapFrame) -> Arc<Self> {
+        assert!(!self.is_kernel_task());
+        let mut t = Self::new_common(TaskId::alloc());
+        let vm = self.vm.as_ref().unwrap().lock().dup();
+        t.entry = EntryState::User(Box::new(tf.new_fork()));
+        t.ctx
+            .get_mut()
+            .init(task_entry as _, t.kstack.top(), vm.page_table_root());
+        t.vm = Some(Arc::new(Mutex::new(vm)));
+
+        let t = Arc::new(t);
+        self.add_child(&t);
+        t
+    }
+
+    pub const fn is_kernel_task(&self) -> bool {
         self.is_kernel
     }
 
@@ -164,7 +184,11 @@ impl Task {
         self.id.as_usize() == 0
     }
 
-    pub fn pid(&self) -> TaskId {
+    pub const fn is_shared_with_parent(&self) -> bool {
+        self.is_shared
+    }
+
+    pub const fn pid(&self) -> TaskId {
         self.id
     }
 
@@ -184,7 +208,7 @@ impl Task {
         self.exit_code.store(exit_code, Ordering::SeqCst)
     }
 
-    pub fn context(&self) -> &TaskLockedCell<TaskContext> {
+    pub const fn context(&self) -> &TaskLockedCell<TaskContext> {
         &self.ctx
     }
 
@@ -225,15 +249,19 @@ impl<'a> CurrentTask<'a> {
     }
 
     pub fn exit(&self, exit_code: i32) -> ! {
-        *self.vm.lock() = None; // drop memory set before lock
+        if let Some(vm) = self.vm.as_ref() {
+            if Arc::strong_count(vm) == 1 {
+                vm.lock().clear(); // drop memory set before lock
+            }
+        }
         TASK_MANAGER.lock().exit_current(self, exit_code)
     }
 
     pub fn exec(&self, path: &str, tf: &mut TrapFrame) -> isize {
         assert!(!self.is_kernel_task());
+        assert_eq!(Arc::strong_count(self.vm.as_ref().unwrap()), 1);
         if let Some(elf_data) = loader::get_app_data_by_name(path) {
-            let mut vm = self.vm.lock();
-            let vm = vm.get_or_insert(MemorySet::new());
+            let mut vm = self.vm.as_ref().unwrap().lock();
             vm.clear();
             let (entry, ustack_top) = vm.load_user(elf_data);
             *tf = TrapFrame::new_user(entry, ustack_top);

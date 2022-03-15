@@ -1,14 +1,15 @@
 use core::arch::asm;
 
-const SYSCALL_READ: usize = 63;
-const SYSCALL_WRITE: usize = 64;
-const SYSCALL_EXIT: usize = 93;
-const SYSCALL_YIELD: usize = 124;
-const SYSCALL_GET_TIME: usize = 169;
-const SYSCALL_GETPID: usize = 172;
-const SYSCALL_FORK: usize = 220;
-const SYSCALL_EXEC: usize = 221;
-const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_READ: usize = 0;
+const SYSCALL_WRITE: usize = 1;
+const SYSCALL_YIELD: usize = 24;
+const SYSCALL_GETPID: usize = 39;
+const SYSCALL_CLONE: usize = 56;
+const SYSCALL_FORK: usize = 57;
+const SYSCALL_EXEC: usize = 59;
+const SYSCALL_EXIT: usize = 60;
+const SYSCALL_WAITPID: usize = 61;
+const SYSCALL_GET_TIME: usize = 96;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let ret;
@@ -50,6 +51,38 @@ pub fn sys_get_time() -> isize {
 
 pub fn sys_getpid() -> isize {
     syscall(SYSCALL_GETPID, [0, 0, 0])
+}
+
+pub fn sys_clone(entry: fn(usize) -> i32, arg: usize, newsp: usize) -> usize {
+    let ret;
+    unsafe {
+        asm!("
+            // save entry, arg to the new stack
+            stp x0, x1, [x2, #-16]!
+
+            // syscall(SYSCALL_CLONE, newsp)
+            mov x0, x2
+            mov x8, {sys_clone}
+            svc #0
+
+            cbz x0, 1f
+            // parent
+            ret
+        1:
+            // child
+            ldp x1, x0, [sp], #16
+            blr x1
+            // syscall(SYSCALL_EXIT, ret)
+            mov x8, {sys_exit}
+            svc #0",
+            sys_clone = const SYSCALL_CLONE,
+            sys_exit = const SYSCALL_EXIT,
+            inlateout("x0") entry => ret,
+            in("x1") arg,
+            in("x2") newsp,
+        );
+    }
+    ret
 }
 
 pub fn sys_fork() -> isize {
