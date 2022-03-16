@@ -8,6 +8,14 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+#[repr(C)]
+pub struct TimeSpec {
+    /// seconds
+    pub sec: usize,
+    /// nano seconds
+    pub nsec: usize,
+}
+
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() -> ! {
@@ -79,10 +87,10 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
 }
 
 pub fn sleep(period_ms: usize) {
-    let start = sys_get_time();
-    while sys_get_time() < start + period_ms as isize {
-        sys_yield();
-    }
+    sys_nanosleep(&TimeSpec {
+        sec: period_ms / 1000,
+        nsec: (period_ms % 1000) * 1000_000,
+    });
 }
 
 pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> usize {

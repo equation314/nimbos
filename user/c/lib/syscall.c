@@ -54,14 +54,3 @@ int wait(int *exit_code)
 {
     return waitpid(-1, exit_code);
 }
-
-unsigned get_time_ms()
-{
-    return syscall(SYS_get_time);
-}
-
-void sleep(unsigned time_ms)
-{
-    unsigned start = get_time_ms();
-    while (get_time_ms() < start + time_ms) { sched_yield(); }
-}

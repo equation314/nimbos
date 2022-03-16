@@ -3,6 +3,6 @@
 
 typedef unsigned long pthread_t;
 
-int pthread_create(pthread_t *res, int (*entry)(void *), void *arg);
+int pthread_create(pthread_t *res, const void *attrp, void *(*entry)(void *), void *arg);
 
 #endif // __PTHREAD_H__

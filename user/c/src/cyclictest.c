@@ -87,30 +87,29 @@ static inline int tsgreater(struct timespec* a, struct timespec* b)
     return ((a->tv_sec > b->tv_sec) || (a->tv_sec == b->tv_sec && a->tv_nsec > b->tv_nsec));
 }
 
-static int timerthread(void* param)
+static void *timerthread(void* param)
 {
+    int err;
     struct thread_param* par = param;
     struct thread_stat* stat = &thrstat[par->id];
+	struct timespec now, saved, interval;
 
     stat->tid = getpid();
-
-    int interval = par->interval / 1000;
+	interval.tv_sec = par->interval / USEC_PER_SEC;
+	interval.tv_nsec = (par->interval % USEC_PER_SEC) * 1000;
 
     while (!shutdown) {
-        int time1 = get_time_ms();
-        sleep(interval);
-        int time2 = get_time_ms();
-        // err = clock_nanosleep(DEFAULT_CLOCK, TIMER_ABSTIME, &next, NULL);
-        // if (err == EINTR)
-        //  break;
-        // assert(!err && "cannot clock_nanosleep");
+        err = clock_gettime(DEFAULT_CLOCK, &saved);
+        assert(!err && "clock_gettime() failed");
 
-        // err = clock_gettime(DEFAULT_CLOCK, &now);
-        // assert(!err);
+        err = nanosleep(&interval, NULL);
+        assert(!err && "nanosleep failed");
 
-        int diff = time2 - time1;
+        err = clock_gettime(DEFAULT_CLOCK, &now);
+        assert(!err && "clock_gettime() failed");
 
-        // long diff = tsdelta(&now, &next);
+        tsinc(&saved, &interval);
+        long diff = tsdelta(&now, &saved);
 
         if (diff < stat->min)
             stat->min = diff;
@@ -119,14 +118,9 @@ static int timerthread(void* param)
         stat->act = diff;
         stat->sum += diff;
         stat->cycles++;
-        // printf("%d\n",stat->cycles);
-
-        // tsinc(&next, &interval);
-        // while (tsgreater(&now, &next))
-        //  tsinc(&next, &interval);
     }
 
-    return 0;
+    return NULL;
 }
 
 static void print_stat(struct thread_param* par, struct thread_stat* stat)
@@ -146,6 +140,12 @@ int main()
 {
     int err;
 
+    // int latency_target_value = 0;
+    // int fd = open("/dev/cpu_dma_latency", 02);
+    // assert(fd > 0);
+	// err = write(fd, &latency_target_value, 4);
+    // assert(err == 4);
+
     for (int i = 0; i < NUM_THREADS; i++) {
         struct thread_param* par = &thrpar[i];
         struct thread_stat* stat = &thrstat[i];
@@ -161,7 +161,7 @@ int main()
         stat->sum = 0;
         stat->cycles = 0;
 
-        err = pthread_create(&par->thread, timerthread, par);
+        err = pthread_create(&par->thread, NULL, timerthread, par);
         assert(!err && "cannot pthread_create");
     }
 
@@ -173,7 +173,7 @@ int main()
                 allstopped++;
         }
 
-        sleep(10);
+        usleep(10000);
         if (shutdown || allstopped)
             break;
         printf("\033[%dA\033[2K", NUM_THREADS);

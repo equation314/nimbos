@@ -1,6 +1,6 @@
+use super::time::TimeSpec;
 use crate::mm::{UserInPtr, UserOutPtr};
 use crate::task::{spawn_task, CurrentTask};
-use crate::timer::get_time_ms;
 use crate::trap::TrapFrame;
 
 const MAX_STR_LEN: usize = 256;
@@ -12,10 +12,6 @@ pub fn sys_exit(exit_code: i32) -> ! {
 pub fn sys_yield() -> isize {
     CurrentTask::get().yield_now();
     0
-}
-
-pub fn sys_get_time() -> isize {
-    get_time_ms() as isize
 }
 
 pub fn sys_getpid() -> isize {
@@ -49,4 +45,14 @@ pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>) -> isize {
     let ret = CurrentTask::get().waitpid(pid, &mut exit_code);
     exit_code_ptr.write(exit_code);
     ret
+}
+
+pub fn sys_nanosleep(req: UserInPtr<TimeSpec>) -> isize {
+    use crate::timer::get_time_ns;
+    let stop_time = get_time_ns() + req.read().total_nano_sec();
+    let current = CurrentTask::get();
+    while get_time_ns() < stop_time {
+        current.yield_now();
+    }
+    0
 }

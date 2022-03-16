@@ -9,12 +9,14 @@ use crate::sync::LazyInit;
 
 const PHYS_TIMER_IRQ_NUM: usize = 30;
 
-const MSEC_PER_SEC: u64 = 1000;
+pub const MSEC_PER_SEC: u64 = 1000;
+pub const USEC_PER_SEC: u64 = MSEC_PER_SEC * 1000;
+pub const NSEC_PER_SEC: u64 = USEC_PER_SEC * 1000;
 
 static CLOCK_FREQ: LazyInit<u64> = LazyInit::new();
 
-pub fn get_time_ms() -> u64 {
-    CNTPCT_EL0.get() * MSEC_PER_SEC / *CLOCK_FREQ
+pub fn get_time_ns() -> u64 {
+    CNTPCT_EL0.get() * NSEC_PER_SEC / *CLOCK_FREQ
 }
 
 pub fn set_next_trigger() {

@@ -8,9 +8,10 @@
 static char THREAD_STACKS[__MAX_THREADS][__THREAD_STACK_SIZE] __attribute__((__aligned__(16)));
 static int THREAD_COUNT = 0;
 
-extern int __clone(int (*entry)(void *), void *stack, void *arg);
+extern int __clone(void *(*entry)(void *), void *stack, void *arg);
 
-int pthread_create(pthread_t *restrict res, int (*entry)(void *), void *restrict arg)
+int pthread_create(pthread_t *restrict res, const void *restrict attrp, void *(*entry)(void *),
+                   void *restrict arg)
 {
     int thread_id = THREAD_COUNT++;
     void *newsp = THREAD_STACKS[thread_id] + __THREAD_STACK_SIZE;

@@ -1,8 +1,10 @@
 use core::arch::asm;
+use super::TimeSpec;
 
 const SYSCALL_READ: usize = 0;
 const SYSCALL_WRITE: usize = 1;
 const SYSCALL_YIELD: usize = 24;
+const SYSCALL_NANOSLEEP: usize = 35;
 const SYSCALL_GETPID: usize = 39;
 const SYSCALL_CLONE: usize = 56;
 const SYSCALL_FORK: usize = 57;
@@ -96,4 +98,8 @@ pub fn sys_exec(path: &str) -> isize {
 
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYSCALL_WAITPID, [pid as usize, exit_code as usize, 0])
+}
+
+pub fn sys_nanosleep(req: &TimeSpec) -> isize {
+    syscall(SYSCALL_NANOSLEEP, [req as * const _ as usize, 0, 0])
 }

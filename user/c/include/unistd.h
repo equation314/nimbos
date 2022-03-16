@@ -13,8 +13,7 @@ pid_t fork(void);
 int execve(const char *path);
 int wait(int *exitcode);
 int waitpid(pid_t pid, int *exitcode);
-void sleep(unsigned time_ms);
 
-unsigned get_time_ms(void);
+void usleep(unsigned useconds);
 
 #endif // __UNISTD_H__
