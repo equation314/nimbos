@@ -2,22 +2,19 @@ use std::fs::{read_dir, File};
 use std::io::{Result, Write};
 
 fn main() {
-    println!("cargo:rerun-if-changed=../user/src/");
+    println!("cargo:rerun-if-changed=../user/c/src");
+    println!("cargo:rerun-if-changed=../user/rust/src");
     insert_app_data().unwrap();
 }
 
-static TARGET_PATH: &str = "../user/target/aarch64-unknown-none/release/";
+static TARGET_PATH: &str = "../user/build/aarch64/";
 
 fn insert_app_data() -> Result<()> {
     let mut f = File::create("src/link_app.S").unwrap();
-    let mut apps: Vec<_> = read_dir("../user/src/bin")
+    let mut apps: Vec<_> = read_dir(TARGET_PATH)
         .unwrap()
         .into_iter()
-        .map(|dir_entry| {
-            let mut name_with_ext = dir_entry.unwrap().file_name().into_string().unwrap();
-            name_with_ext.drain(name_with_ext.find('.').unwrap()..name_with_ext.len());
-            name_with_ext
-        })
+        .map(|dir_entry| dir_entry.unwrap().file_name().into_string().unwrap())
         .collect();
     apps.sort();
 

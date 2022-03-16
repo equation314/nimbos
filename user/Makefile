@@ -1,37 +1,29 @@
-ARCH := aarch64
-TARGET := $(shell cat ../targets.txt | grep $(ARCH))
-MODE := release
-APP_DIR := src/bin
-TARGET_DIR := target/$(TARGET)/$(MODE)
-APPS := $(wildcard $(APP_DIR)/*.rs)
-ELFS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
-ASMS := $(patsubst %, %.asm, $(ELFS))
+ARCH ?= aarch64
+MODE ?= release
 
-BUILD_ARGS := --target $(TARGET) -Zbuild-std=core
-ifeq ($(MODE), release)
-  BUILD_ARGS += --release
+BUILD_RUST ?= y
+BUILD_C ?= y
+
+build_dir := build/$(ARCH)
+
+build: rust c
+
+build_dir:
+	@mkdir -p $(build_dir)
+
+rust: build_dir
+ifeq ($(BUILD_RUST), y)
+	@make -C rust/
 endif
 
-OBJDUMP := rust-objdump --arch-name=$(ARCH) --print-imm-hex
-OBJCOPY := rust-objcopy --binary-architecture=$(ARCH)
-
-export RUSTFLAGS=-C target-feature=-neon,-fp
-
-all: build
-
-elf:
-	cargo build $(BUILD_ARGS)
-
-$(ELFS): elf
-
-$(TARGET_DIR)/%.asm: $(TARGET_DIR)/%
-	$(OBJDUMP) -d $< > $@
-
-disasm: $(ASMS) $(ELFS)
-
-build: elf
+c: build_dir
+ifeq ($(BUILD_C), y)
+	@make -C c/
+endif
 
 clean:
-	@cargo clean
+	@make -C rust/ clean
+	@make -C c/ clean
+	@rm -rf $(build_dir)
 
-.PHONY: all binary disasm build clean
+.PHONY: build build_dir rust c clean
