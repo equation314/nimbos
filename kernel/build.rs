@@ -4,6 +4,7 @@ use std::io::{Result, Write};
 fn main() {
     println!("cargo:rerun-if-changed=../user/c/src");
     println!("cargo:rerun-if-changed=../user/rust/src");
+    println!("cargo:rerun-if-changed=../user/build");
     insert_app_data().unwrap();
 }
 

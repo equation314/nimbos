@@ -1,6 +1,6 @@
 # NimbOS 2022
 
-A experimental real-time operating system (RTOS) written in Rust.
+An experimental real-time operating system (RTOS) written in Rust.
 
 🚧 Working In Progress.
 

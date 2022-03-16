@@ -57,7 +57,8 @@ pub fn sys_clone(entry: fn(usize) -> i32, arg: usize, newsp: usize) -> usize {
     let ret;
     unsafe {
         asm!("
-            // save entry, arg to the new stack
+            // align stack and save entry,arg to the new stack
+	        and x2, x2, #-16
             stp x0, x1, [x2, #-16]!
 
             // syscall(SYSCALL_CLONE, newsp)

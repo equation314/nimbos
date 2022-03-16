@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
 project(nimbos_user)
-enable_language(ASM)
+enable_language(C ASM)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "")
 
 # Toolchain
@@ -37,7 +37,7 @@ set(BIN_DIR ${ARCH}/bin)
 
 # Library
 aux_source_directory(lib LIBS)
-set(LIBS ${ARCH_DIR}/crt.S ${LIBS})
+set(LIBS ${ARCH_DIR}/crt.S ${ARCH_DIR}/clone.S ${LIBS})
 add_library(ulib ${LIBS} syscall_ids)
 include_directories(include/)
 target_include_directories(ulib PRIVATE ${ARCH_DIR})

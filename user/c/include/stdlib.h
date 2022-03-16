@@ -4,4 +4,7 @@
 int rand(void);
 void srand(unsigned);
 
+_Noreturn void exit(int);
+_Noreturn void abort(void);
+
 #endif //__STDLIB_H__

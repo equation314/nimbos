@@ -3,17 +3,17 @@
 
 #include "syscall.h"
 
-ssize_t read(int fd, void* buf, size_t count)
+ssize_t read(int fd, void *buf, size_t count)
 {
     return syscall(SYS_read, fd, buf, count);
 }
 
-ssize_t write(int fd, const void* buf, size_t count)
+ssize_t write(int fd, const void *buf, size_t count)
 {
     return syscall(SYS_write, fd, buf, count);
 }
 
-int getpid(void)
+pid_t getpid(void)
 {
     return syscall(SYS_getpid);
 }
@@ -23,7 +23,45 @@ int sched_yield(void)
     return syscall(SYS_yield);
 }
 
-void exit(int code)
+_Noreturn void exit(int code)
 {
-    syscall(SYS_exit, code);
+    for (;;) syscall(SYS_exit, code);
+}
+
+pid_t fork(void)
+{
+    return syscall(SYS_fork);
+}
+
+int execve(const char *path)
+{
+    return syscall(SYS_exec, path);
+}
+
+int waitpid(pid_t pid, int *exit_code)
+{
+    for (;;) {
+        int ret = syscall(SYS_waitpid, pid, exit_code);
+        if (ret == -2) {
+            sched_yield();
+        } else {
+            return ret;
+        }
+    }
+}
+
+int wait(int *exit_code)
+{
+    return waitpid(-1, exit_code);
+}
+
+unsigned get_time_ms()
+{
+    return syscall(SYS_get_time);
+}
+
+void sleep(unsigned time_ms)
+{
+    unsigned start = get_time_ms();
+    while (get_time_ms() < start + time_ms) { sched_yield(); }
 }

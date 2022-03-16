@@ -4,11 +4,12 @@ use crate::task::CurrentTask;
 
 const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
+const FD_STDERR: usize = 2;
 const CHUNK_SIZE: usize = 256;
 
 pub fn sys_write(fd: usize, buf: UserInPtr<u8>, len: usize) -> isize {
     match fd {
-        FD_STDOUT => {
+        FD_STDOUT | FD_STDERR => {
             let mut count = 0;
             while count < len {
                 let chunk_len = CHUNK_SIZE.min(len);
