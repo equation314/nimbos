@@ -2,7 +2,7 @@
 ARCH := aarch64
 TARGET := $(shell cat ../targets.txt | grep $(ARCH))
 MODE := release
-KERNEL_ELF := target/$(TARGET)/$(MODE)/os
+KERNEL_ELF := target/$(TARGET)/$(MODE)/nimbos
 KERNEL_BIN := $(KERNEL_ELF).bin
 
 BUILD_ARGS := --target $(TARGET) -Zbuild-std=core,alloc

@@ -21,7 +21,7 @@ A experimental real-time operating system (RTOS) written in Rust.
 ## Build & Run (in QEMU)
 
 ```sh
-cd os
+cd kernel
 make env    # for first time
 make run
 ```
