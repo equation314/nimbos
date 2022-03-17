@@ -9,4 +9,4 @@ cfg_if! {
     }
 }
 
-pub use self::imp::{get_time_ns, init, set_next_trigger};
+pub use self::imp::{get_time_ns, init};

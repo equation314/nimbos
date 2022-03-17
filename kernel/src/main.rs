@@ -1,9 +1,10 @@
 #![no_std]
 #![no_main]
 #![feature(asm_sym)]
+#![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
-#![feature(naked_functions)]
+#![feature(const_fn_fn_ptr_basics)]
 #![feature(const_maybe_uninit_zeroed)]
 
 extern crate alloc;
@@ -23,7 +24,6 @@ mod platform;
 mod sync;
 mod syscall;
 mod task;
-mod trap;
 mod utils;
 
 fn clear_bss() {
@@ -40,7 +40,7 @@ fn clear_bss() {
 pub fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
-    trap::init();
+    arch::init();
     mm::init();
     println!("[kernel] back to world!");
     mm::remap_test();

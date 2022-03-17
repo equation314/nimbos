@@ -18,8 +18,7 @@ mod time;
 use self::fs::*;
 use self::task::*;
 use self::time::*;
-use crate::arch::instructions;
-use crate::trap::TrapFrame;
+use crate::arch::{instructions, TrapFrame};
 
 pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize {
     instructions::enable_irqs();

@@ -2,7 +2,6 @@ mod manager;
 mod percpu;
 mod schedule;
 mod structs;
-mod switch;
 
 pub use structs::{CurrentTask, TaskId};
 

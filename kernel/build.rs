@@ -1,5 +1,6 @@
 use std::fs::{read_dir, File};
 use std::io::{Result, Write};
+use std::path::Path;
 
 fn main() {
     println!("cargo:rerun-if-changed=../user/c/src");
@@ -7,11 +8,17 @@ fn main() {
     insert_app_data().ok();
 }
 
-static TARGET_PATH: &str = "../user/build/aarch64/";
-
 fn insert_app_data() -> Result<()> {
+    let target = std::env::var("TARGET").unwrap();
+    let arch = if target.contains("aarch64") {
+        "aarch64"
+    } else {
+        panic!("Unsupported architecture: {}", target);
+    };
+    let app_path = Path::new("../user/build/").join(arch);
+
     let mut f = File::create("src/link_app.S")?;
-    let mut apps: Vec<_> = read_dir(TARGET_PATH)?
+    let mut apps: Vec<_> = read_dir(&app_path)?
         .into_iter()
         .map(|dir_entry| dir_entry.unwrap().file_name().into_string().unwrap())
         .collect();
@@ -44,9 +51,11 @@ app_{0}_name:
     .string "{1}"
     .align 3
 app_{0}_start:
-    .incbin "{2}{1}"
+    .incbin "{2}"
 app_{0}_end:"#,
-            idx, app, TARGET_PATH
+            idx,
+            app,
+            app_path.join(app).display()
         )?;
     }
     Ok(())

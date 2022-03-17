@@ -6,9 +6,9 @@ use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 
+use super::IrqHandlerResult;
 use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
-use crate::trap::IrqHandlerResult;
 
 const GIC_BASE: usize = 0x0800_0000;
 const GICD_BASE: PhysAddr = PhysAddr::new(GIC_BASE);
@@ -16,6 +16,8 @@ const GICC_BASE: PhysAddr = PhysAddr::new(GIC_BASE + 0x10000);
 
 const PPI_BASE: usize = 16;
 const SPI_BASE: usize = 32;
+
+pub const IRQ_COUNT: usize = 1024;
 
 static GIC: LazyInit<Gic> = LazyInit::new();
 
@@ -199,13 +201,7 @@ pub fn set_enable(vector: usize, enable: bool) {
 
 pub fn handle_irq() -> IrqHandlerResult {
     if let Some(vector) = GIC.pending_irq() {
-        let res = match vector {
-            30 => {
-                crate::drivers::timer::set_next_trigger();
-                IrqHandlerResult::Reschedule
-            }
-            _ => IrqHandlerResult::NoReschedule,
-        };
+        let res = super::handle(vector);
         GIC.eoi(vector);
         res
     } else {

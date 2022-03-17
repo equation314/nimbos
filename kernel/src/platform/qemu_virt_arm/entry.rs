@@ -6,7 +6,7 @@ use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 use crate::arch::instructions;
 use crate::arch::PageTableEntry;
 use crate::config::BOOT_KERNEL_STACK_SIZE;
-use crate::mm::{MemFlags, PhysAddr};
+use crate::mm::{GenericPTE, MemFlags, PhysAddr};
 
 #[link_section = ".bss.stack"]
 static mut BOOT_STACK: [u8; BOOT_KERNEL_STACK_SIZE] = [0; BOOT_KERNEL_STACK_SIZE];

@@ -1,12 +1,10 @@
-mod context;
-
-pub use context::TrapFrame;
-
 use core::arch::global_asm;
 
 use cortex_a::registers::{ESR_EL1, FAR_EL1, VBAR_EL1};
 use tock_registers::interfaces::{Readable, Writeable};
 
+use super::TrapFrame;
+use crate::drivers::interrupt::IrqHandlerResult;
 use crate::{syscall::syscall, task::CurrentTask};
 
 global_asm!(include_str!("trap.S"));
@@ -36,12 +34,6 @@ enum TrapSource {
     CurrentSpElx = 1,
     LowerAArch64 = 2,
     LowerAArch32 = 3,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum IrqHandlerResult {
-    Reschedule,
-    NoReschedule,
 }
 
 #[no_mangle]

@@ -1,7 +1,7 @@
 use super::time::TimeSpec;
+use crate::arch::TrapFrame;
 use crate::mm::{UserInPtr, UserOutPtr};
 use crate::task::{spawn_task, CurrentTask};
-use crate::trap::TrapFrame;
 
 const MAX_STR_LEN: usize = 256;
 

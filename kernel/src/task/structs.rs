@@ -4,13 +4,11 @@ use core::sync::atomic::{AtomicI32, AtomicU8, AtomicUsize, Ordering};
 
 use super::manager::{TaskLockedCell, TASK_MANAGER};
 use super::percpu::PerCpu;
-use super::switch::TaskContext;
-use crate::arch::instructions;
+use crate::arch::{instructions, TaskContext, TrapFrame};
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
 use crate::mm::{MemorySet, PhysAddr};
 use crate::sync::{LazyInit, Mutex};
-use crate::trap::TrapFrame;
 
 pub static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
 
