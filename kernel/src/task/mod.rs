@@ -10,6 +10,7 @@ use alloc::sync::Arc;
 
 use self::manager::TASK_MANAGER;
 use self::structs::{Task, ROOT_TASK};
+use crate::arch::instructions;
 
 pub fn init() {
     percpu::init_percpu();
@@ -21,7 +22,7 @@ pub fn init() {
             let mut exit_code = 0;
             while curr_task.waitpid(-1, &mut exit_code) > 0 {}
             if curr_task.children.lock().len() == 0 {
-                crate::arch::wait_for_ints();
+                instructions::wait_for_ints();
             } else {
                 curr_task.yield_now();
             }
@@ -50,7 +51,7 @@ pub fn spawn_task(task: Arc<Task>) {
 }
 
 pub fn run() -> ! {
-    crate::arch::enable_irqs();
+    instructions::enable_irqs();
     CurrentTask::get().yield_now(); // current task is idle at this time
     unreachable!("root task exit!");
 }

@@ -2,6 +2,7 @@ use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
 use super::structs::Task;
+use crate::arch::instructions;
 use crate::config::MAX_CPUS;
 use crate::sync::LazyInit;
 
@@ -27,7 +28,7 @@ impl PerCpu {
     }
 
     pub fn current<'a>() -> &'a Self {
-        unsafe { &*(crate::arch::thread_pointer() as *const Self) }
+        unsafe { &*(instructions::thread_pointer() as *const Self) }
     }
 
     pub fn idle_task<'a>() -> &'a Arc<Task> {
@@ -43,7 +44,7 @@ impl PerCpu {
 
     pub fn set_current_task(&self, task: Arc<Task>) {
         // We must disable interrupts and task preemption.
-        assert!(crate::arch::irqs_disabled());
+        assert!(instructions::irqs_disabled());
         let old_task = core::mem::replace(unsafe { &mut *self.current_task.get() }, task);
         drop(old_task)
     }
@@ -52,5 +53,5 @@ impl PerCpu {
 pub(super) fn init_percpu() {
     let cpu_id = 0;
     CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
-    unsafe { crate::arch::set_thread_pointer(&*CPUS[cpu_id] as *const PerCpu as usize) };
+    unsafe { instructions::set_thread_pointer(&*CPUS[cpu_id] as *const PerCpu as usize) };
 }

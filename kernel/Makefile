@@ -1,70 +1,75 @@
-# Building
-ARCH := aarch64
-TARGET := $(shell cat ../targets.txt | grep $(ARCH))
-MODE := release
-KERNEL_ELF := target/$(TARGET)/$(MODE)/nimbos
-KERNEL_BIN := $(KERNEL_ELF).bin
+# Arguments
+ARCH ?= aarch64
+MODE ?= release
 
-BUILD_ARGS := --target $(TARGET) -Zbuild-std=core,alloc
-ifeq ($(MODE), release)
-  BUILD_ARGS += --release
+# Platform
+ifeq ($(ARCH), aarch64)
+  PLATFORM ?= qemu-virt-arm
 endif
 
-# BOARD
-BOARD ?= qemu
+# Paths
+target := $(shell cat ../targets.txt | grep $(ARCH))
+kernel_elf := target/$(target)/$(MODE)/nimbos
+kernel_bin := $(kernel_elf).bin
+
+# Cargo features and build args
+features := platform-$(PLATFORM)
+
+build_args := --features "$(features)" --target $(target) -Zbuild-std=core,alloc
+ifeq ($(MODE), release)
+  build_args += --release
+endif
 
 # Binutils
-OBJDUMP := rust-objdump --arch-name=$(ARCH) --print-imm-hex
+OBJDUMP := rust-objdump -d --arch-name=$(ARCH) --print-imm-hex
 OBJCOPY := rust-objcopy --binary-architecture=$(ARCH)
-
-# Disassembly
-DISASM ?= -d
+GDB := gdb-multiarch
 
 # QEMU
-QEMU := qemu-system-$(ARCH)
-QEMU_ARGS := -nographic
+qemu := qemu-system-$(ARCH)
+qemu_args := -nographic
 ifeq ($(ARCH), aarch64)
-  QEMU_ARGS += \
+  qemu_args += \
     -cpu cortex-a72 \
     -machine virt \
-    -kernel $(KERNEL_BIN)
+    -kernel $(kernel_bin)
 endif
 
 # GDB
 GDB := gdb-multiarch
 
-build: $(KERNEL_BIN)
+build: $(kernel_bin)
 
 env:
-	(rustup target list | grep "$(TARGET) (installed)") || rustup target add $(TARGET)
+	(rustup target list | grep "$(target) (installed)") || rustup target add $(target)
 	cargo install cargo-binutils --vers =0.3.3
 	rustup component add rust-src
 	rustup component add llvm-tools-preview
 
-$(KERNEL_BIN): kernel
-	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+$(kernel_bin): kernel
+	@$(OBJCOPY) $(kernel_elf) --strip-all -O binary $@
 
 kernel:
 	@cd ../user && make build
-	@echo Arch: $(ARCH), Platform: $(BOARD)
-	cargo build $(BUILD_ARGS)
+	@echo Arch: $(ARCH), Platform: $(PLATFORM)
+	cargo build $(build_args)
 
 clean:
 	@cd ../user && make clean
 	@cargo clean
 
+clippy:
+	cargo clippy $(build_args)
+
 disasm:
-	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) | less
+	@$(OBJDUMP) $(kernel_elf) | less
 
-run: run-inner
-
-run-inner: build
-	$(QEMU) $(QEMU_ARGS)
+run: build
+	$(qemu) $(qemu_args)
 
 debug: build
-	@tmux new-session -d \
-		"$(QEMU) $(QEMU_ARGS) -s -S" && \
-		tmux split-window -h "$(GDB) $(KERNEL_ELF) -ex 'target remote localhost:1234'" && \
-		tmux -2 attach-session -d
+	$(qemu) $(qemu_args) -s -S &
+	sleep 1
+	$(GDB) $(kernel_elf) -ex 'target remote localhost:1234'
 
-.PHONY: build env kernel clean disasm run run-inner debug
+.PHONY: build env kernel clean disasm run debug

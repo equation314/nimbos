@@ -2,10 +2,11 @@ use alloc::collections::btree_map::{BTreeMap, Entry};
 use core::fmt;
 
 use super::address::{align_down, is_aligned, phys_to_virt, virt_to_phys};
-use super::{MemFlags, PageTable, PhysFrame, PAGE_SIZE};
-use crate::arch;
-use crate::config::{MEMORY_END, MMIO_REGIONS, USER_STACK_BASE, USER_STACK_SIZE};
+use super::{MemFlags, PhysFrame, PAGE_SIZE};
+use crate::arch::{instructions, PageTable};
+use crate::config::{USER_STACK_BASE, USER_STACK_SIZE};
 use crate::mm::{PhysAddr, VirtAddr};
+use crate::platform::consts::{MEMORY_END, MMIO_REGIONS};
 use crate::sync::LazyInit;
 
 extern "C" {
@@ -214,7 +215,7 @@ impl MemorySet {
             );
             area.write_data(offset, data);
             self.insert(area);
-            crate::arch::flush_icache_all();
+            instructions::flush_icache_all();
         }
         // user stack
         self.insert(MapArea::new_framed(
@@ -318,8 +319,8 @@ pub fn init_paging() {
     let page_table_root = ms.page_table_root();
     KERNEL_SPACE.init_by(ms);
     unsafe {
-        arch::activate_paging(page_table_root.as_usize(), true); // set TTBR0 to zero for kernel tasks
-        arch::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
+        instructions::activate_paging(page_table_root.as_usize(), true); // set TTBR0 to zero for kernel tasks
+        instructions::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
     }
 }
 

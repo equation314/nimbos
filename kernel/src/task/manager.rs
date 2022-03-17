@@ -124,7 +124,7 @@ impl<T> TaskLockedCell<T> {
 
     pub fn as_ptr(&self) -> *mut T {
         assert!(TASK_MANAGER.is_locked());
-        assert!(crate::arch::irqs_disabled());
+        assert!(crate::arch::instructions::irqs_disabled());
         self.data.get()
     }
 

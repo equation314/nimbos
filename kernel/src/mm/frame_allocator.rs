@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
-use crate::config::MEMORY_END;
+use crate::platform::consts::MEMORY_END;
 use crate::sync::SpinNoIrqLock;
 use crate::utils::FreeListAllocator;
 

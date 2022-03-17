@@ -3,7 +3,7 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::arch;
+use crate::arch::instructions;
 
 pub struct SpinNoIrqLock<T: ?Sized> {
     lock: AtomicBool,
@@ -36,8 +36,8 @@ impl<T> SpinNoIrqLock<T> {
     }
 
     pub fn lock(&self) -> SpinNoIrqLockGuard<T> {
-        let irq_enabled_before = !arch::irqs_disabled();
-        arch::disable_irqs();
+        let irq_enabled_before = !instructions::irqs_disabled();
+        instructions::disable_irqs();
         while self
             .lock
             .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -55,8 +55,8 @@ impl<T> SpinNoIrqLock<T> {
     }
 
     pub fn try_lock(&self) -> Option<SpinNoIrqLockGuard<T>> {
-        let irq_enabled_before = !arch::irqs_disabled();
-        arch::disable_irqs();
+        let irq_enabled_before = !instructions::irqs_disabled();
+        instructions::disable_irqs();
         if self
             .lock
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -69,7 +69,7 @@ impl<T> SpinNoIrqLock<T> {
             })
         } else {
             if irq_enabled_before {
-                arch::enable_irqs();
+                instructions::enable_irqs();
             }
             None
         }
@@ -116,7 +116,7 @@ impl<'a, T: ?Sized> Drop for SpinNoIrqLockGuard<'a, T> {
     fn drop(&mut self) {
         self.lock.store(false, Ordering::Release);
         if self.irq_enabled_before {
-            arch::enable_irqs();
+            instructions::enable_irqs();
         }
     }
 }

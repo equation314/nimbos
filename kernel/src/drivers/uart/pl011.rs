@@ -8,6 +8,7 @@ use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::Mutex;
 
 const UART_BASE: PhysAddr = PhysAddr::new(0x0900_0000);
+const UART_IRQ_NUM: usize = 33;
 
 static UART: Mutex<Pl011Uart> = Mutex::new(Pl011Uart::new(UART_BASE.into_kvaddr()));
 
@@ -55,4 +56,9 @@ pub fn console_putchar(c: u8) {
 
 pub fn console_getchar() -> Option<u8> {
     UART.lock().getchar()
+}
+
+pub fn init() {
+    // UART interrupts are not supported currently
+    crate::drivers::interrupt::set_enable(UART_IRQ_NUM, false);
 }

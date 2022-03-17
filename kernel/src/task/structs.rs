@@ -5,6 +5,7 @@ use core::sync::atomic::{AtomicI32, AtomicU8, AtomicUsize, Ordering};
 use super::manager::{TaskLockedCell, TASK_MANAGER};
 use super::percpu::PerCpu;
 use super::switch::TaskContext;
+use crate::arch::instructions;
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
 use crate::mm::{MemorySet, PhysAddr};
@@ -223,7 +224,7 @@ impl Task {
 fn task_entry() -> ! {
     // release the lock that was implicitly held across the reschedule
     unsafe { TASK_MANAGER.force_unlock() };
-    crate::arch::enable_irqs();
+    instructions::enable_irqs();
     let task = CurrentTask::get();
     match &task.entry {
         EntryState::Kernel { pc, arg } => {
@@ -265,7 +266,7 @@ impl<'a> CurrentTask<'a> {
             vm.clear();
             let (entry, ustack_top) = vm.load_user(elf_data);
             *tf = TrapFrame::new_user(entry, ustack_top);
-            crate::arch::flush_tlb_all();
+            instructions::flush_tlb_all();
             0
         } else {
             -1

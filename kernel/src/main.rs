@@ -7,22 +7,22 @@
 #![feature(const_maybe_uninit_zeroed)]
 
 extern crate alloc;
+#[macro_use]
+extern crate cfg_if;
 
 #[macro_use]
 mod console;
+
 mod arch;
 mod config;
-mod entry;
-mod gicv2;
+mod drivers;
 mod lang_items;
 mod loader;
 mod mm;
-mod pl011;
-mod psci;
+mod platform;
 mod sync;
 mod syscall;
 mod task;
-mod timer;
 mod trap;
 mod utils;
 
@@ -45,8 +45,7 @@ pub fn rust_main() -> ! {
     println!("[kernel] back to world!");
     mm::remap_test();
 
-    gicv2::init();
-    timer::init();
+    drivers::init();
 
     task::init();
     loader::list_apps();

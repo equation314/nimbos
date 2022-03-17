@@ -1,5 +1,5 @@
+use crate::drivers::uart::console_getchar;
 use crate::mm::{UserInPtr, UserOutPtr};
-use crate::pl011::console_getchar;
 use crate::task::CurrentTask;
 
 const FD_STDIN: usize = 0;

@@ -18,11 +18,11 @@ mod time;
 use self::fs::*;
 use self::task::*;
 use self::time::*;
-use crate::arch;
+use crate::arch::instructions;
 use crate::trap::TrapFrame;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize {
-    arch::enable_irqs();
+    instructions::enable_irqs();
     let ret = match syscall_id {
         SYSCALL_READ => sys_read(args[0], args[1].into(), args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1].into(), args[2]),
@@ -41,6 +41,6 @@ pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize
             crate::task::CurrentTask::get().exit(-1);
         }
     };
-    arch::disable_irqs();
+    instructions::disable_irqs();
     ret
 }

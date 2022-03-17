@@ -102,7 +102,7 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
 
 #[no_mangle]
 fn handle_irq_exception(_tf: &mut TrapFrame) {
-    if crate::gicv2::handle_irq() == IrqHandlerResult::Reschedule {
+    if crate::drivers::interrupt::handle_irq() == IrqHandlerResult::Reschedule {
         CurrentTask::get().yield_now();
     }
 }

@@ -1,6 +1,6 @@
 use core::fmt::{self, Write};
 
-use crate::pl011::console_putchar;
+use crate::drivers::uart::console_putchar;
 use crate::sync::Mutex;
 
 struct Stdout;

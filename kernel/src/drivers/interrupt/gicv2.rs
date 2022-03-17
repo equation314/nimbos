@@ -193,15 +193,15 @@ impl Gic {
     }
 }
 
-pub fn irq_set_mask(vector: usize, masked: bool) {
-    GIC.set_enable(vector, !masked);
+pub fn set_enable(vector: usize, enable: bool) {
+    GIC.set_enable(vector, enable);
 }
 
 pub fn handle_irq() -> IrqHandlerResult {
     if let Some(vector) = GIC.pending_irq() {
         let res = match vector {
             30 => {
-                crate::timer::set_next_trigger();
+                crate::drivers::timer::set_next_trigger();
                 IrqHandlerResult::Reschedule
             }
             _ => IrqHandlerResult::NoReschedule,

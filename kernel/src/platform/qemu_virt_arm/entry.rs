@@ -3,9 +3,10 @@ use core::arch::asm;
 use cortex_a::{asm, asm::barrier, registers::*};
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 
-use crate::arch;
+use crate::arch::instructions;
+use crate::arch::PageTableEntry;
 use crate::config::BOOT_KERNEL_STACK_SIZE;
-use crate::mm::{MemFlags, PageTableEntry, PhysAddr};
+use crate::mm::{MemFlags, PhysAddr};
 
 #[link_section = ".bss.stack"]
 static mut BOOT_STACK: [u8; BOOT_KERNEL_STACK_SIZE] = [0; BOOT_KERNEL_STACK_SIZE];
@@ -84,7 +85,7 @@ unsafe fn init_mmu() {
     TTBR1_EL1.set(root_paddr);
 
     // Flush TLB
-    arch::flush_tlb_all();
+    instructions::flush_tlb_all();
 
     // Enable the MMU and turn on I-cache and D-cache
     SCTLR_EL1.modify(SCTLR_EL1::M::Enable + SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);

@@ -1,5 +1,5 @@
+use crate::drivers::timer::{get_time_ns, NSEC_PER_SEC};
 use crate::mm::UserOutPtr;
-use crate::timer::{get_time_ns, NSEC_PER_SEC};
 
 #[repr(C)]
 pub struct TimeSpec {

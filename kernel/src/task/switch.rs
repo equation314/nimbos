@@ -35,7 +35,7 @@ impl TaskContext {
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            crate::arch::activate_paging(next_ctx.ttbr0_el1 as usize, false);
+            crate::arch::instructions::activate_paging(next_ctx.ttbr0_el1 as usize, false);
             context_switch(self, next_ctx)
         }
     }

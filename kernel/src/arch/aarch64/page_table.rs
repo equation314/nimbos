@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::fmt;
 
-use super::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
+use crate::mm::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
 
 bitflags::bitflags! {
     /// Memory attribute fields in the VMSAv8-64 translation table format descriptors.
