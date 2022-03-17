@@ -4,16 +4,14 @@ use std::io::{Result, Write};
 fn main() {
     println!("cargo:rerun-if-changed=../user/c/src");
     println!("cargo:rerun-if-changed=../user/rust/src");
-    println!("cargo:rerun-if-changed=../user/build");
-    insert_app_data().unwrap();
+    insert_app_data().ok();
 }
 
 static TARGET_PATH: &str = "../user/build/aarch64/";
 
 fn insert_app_data() -> Result<()> {
-    let mut f = File::create("src/link_app.S").unwrap();
-    let mut apps: Vec<_> = read_dir(TARGET_PATH)
-        .unwrap()
+    let mut f = File::create("src/link_app.S")?;
+    let mut apps: Vec<_> = read_dir(TARGET_PATH)?
         .into_iter()
         .map(|dir_entry| dir_entry.unwrap().file_name().into_string().unwrap())
         .collect();

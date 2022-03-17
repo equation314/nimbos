@@ -49,8 +49,10 @@ env:
 $(kernel_bin): kernel
 	@$(OBJCOPY) $(kernel_elf) --strip-all -O binary $@
 
-kernel:
+user:
 	@cd ../user && make build
+
+kernel: user
 	@echo Arch: $(ARCH), Platform: $(PLATFORM)
 	cargo build $(build_args)
 
@@ -72,4 +74,4 @@ debug: build
 	sleep 1
 	$(GDB) $(kernel_elf) -ex 'target remote localhost:1234'
 
-.PHONY: build env kernel clean disasm run debug
+.PHONY: build env kernel user clean disasm run debug
