@@ -258,7 +258,7 @@ impl Drop for MemorySet {
 pub fn init_paging() {
     let mut ms = MemorySet::new();
     let mut map_range = |start: usize, end: usize, flags: MemFlags, name: &str| {
-        println!("mapping {}: [{:#x}, {:#x})", name, start, end);
+        println!("Mapping {}: [{:#x}, {:#x})", name, start, end);
         assert!(start < end);
         assert!(VirtAddr::new(start).is_aligned());
         assert!(VirtAddr::new(end).is_aligned());

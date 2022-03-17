@@ -8,4 +8,5 @@ pub use self::page_table::{PageTable, PageTableEntry};
 
 pub fn init() {
     trap::init();
+    unsafe { instructions::set_thread_pointer(0) };
 }

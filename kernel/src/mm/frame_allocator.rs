@@ -59,6 +59,10 @@ pub fn init_frame_allocator() {
     }
     let start_paddr = PhysAddr::new(virt_to_phys(ekernel as usize)).align_up();
     let end_paddr = PhysAddr::new(MEMORY_END).align_down();
+    println!(
+        "Initialising frame allocator at: [{:#x?}, {:#x?})",
+        start_paddr, end_paddr
+    );
     FRAME_ALLOCATOR
         .lock()
         .init(start_paddr.as_usize() / PAGE_SIZE..end_paddr.as_usize() / PAGE_SIZE);

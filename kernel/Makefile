@@ -1,11 +1,16 @@
 # Arguments
 ARCH ?= aarch64
 MODE ?= release
+LOG ?= warn
 
 # Platform
 ifeq ($(ARCH), aarch64)
   PLATFORM ?= qemu-virt-arm
 endif
+
+export LOG
+export ARCH
+export PLATFORM
 
 # Paths
 target := $(shell cat ../targets.txt | grep $(ARCH))

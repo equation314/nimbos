@@ -12,6 +12,8 @@ use self::structs::{Task, ROOT_TASK};
 use crate::arch::instructions;
 
 pub fn init() {
+    println!("Initialising task manager...");
+
     percpu::init_percpu();
     manager::init();
 
@@ -50,6 +52,7 @@ pub fn spawn_task(task: Arc<Task>) {
 }
 
 pub fn run() -> ! {
+    println!("Running tasks...");
     instructions::enable_irqs();
     CurrentTask::get().yield_now(); // current task is idle at this time
     unreachable!("root task exit!");

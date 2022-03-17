@@ -10,9 +10,11 @@
 extern crate alloc;
 #[macro_use]
 extern crate cfg_if;
+#[macro_use]
+extern crate log;
 
 #[macro_use]
-mod console;
+mod logging;
 
 mod arch;
 mod config;
@@ -37,15 +39,29 @@ fn clear_bss() {
     }
 }
 
+const LOGO: &str = r"
+NN   NN  iii               bb        OOOOO    SSSSS
+NNN  NN       mm mm mmmm   bb       OO   OO  SS
+NN N NN  iii  mmm  mm  mm  bbbbbb   OO   OO   SSSSS
+NN  NNN  iii  mmm  mm  mm  bb   bb  OO   OO       SS
+NN   NN  iii  mmm  mm  mm  bbbbbb    OOOO0    SSSSS
+              ___    ____    ___    ___
+             |__ \  / __ \  |__ \  |__ \
+             __/ / / / / /  __/ /  __/ /
+            / __/ / /_/ /  / __/  / __/
+           /____/ \____/  /____/ /____/
+";
+
 pub fn rust_main() -> ! {
     clear_bss();
-    println!("[kernel] Hello, world!");
+    println!("{}", LOGO);
+
     arch::init();
     mm::init();
-    println!("[kernel] back to world!");
-    mm::remap_test();
 
     drivers::init();
+    logging::init();
+    info!("Logging is enabled.");
 
     task::init();
     loader::list_apps();

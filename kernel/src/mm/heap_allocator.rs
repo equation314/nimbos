@@ -12,8 +12,8 @@ impl LockedHeap {
         LockedHeap(SpinNoIrqLock::new(Heap::<32>::new()))
     }
 
-    pub fn init(&self, start: usize, end: usize) {
-        unsafe { self.0.lock().init(start, end) };
+    pub fn init(&self, start: usize, size: usize) {
+        unsafe { self.0.lock().init(start, size) };
     }
 }
 
@@ -42,7 +42,13 @@ pub fn handle_alloc_error(layout: Layout) -> ! {
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 pub fn init_heap() {
-    HEAP_ALLOCATOR.init(unsafe { HEAP_SPACE.as_ptr() } as usize, KERNEL_HEAP_SIZE);
+    let heap_start = unsafe { HEAP_SPACE.as_ptr() as usize };
+    println!(
+        "Initialising kernel heap at: [{:#x}, {:#x})",
+        heap_start,
+        heap_start + KERNEL_HEAP_SIZE
+    );
+    HEAP_ALLOCATOR.init(heap_start, KERNEL_HEAP_SIZE);
 }
 
 #[allow(unused)]
