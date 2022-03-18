@@ -34,12 +34,12 @@ pub unsafe fn activate_paging(page_table_root: usize, is_kernel: bool) {
     flush_tlb_all();
 }
 
-pub fn flush_icache_all() {
-    unsafe { asm!("ic iallu; dsb sy; isb") };
-}
-
 pub fn flush_tlb_all() {
     unsafe { asm!("tlbi vmalle1; dsb sy; isb") };
+}
+
+pub fn flush_icache_all() {
+    unsafe { asm!("ic iallu; dsb sy; isb") };
 }
 
 pub fn wait_for_ints() {

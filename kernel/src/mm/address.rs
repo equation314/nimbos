@@ -3,7 +3,7 @@
 use core::fmt;
 
 use super::PAGE_SIZE;
-use crate::config::PHYS_VIRT_OFFSET;
+use crate::arch::consts::PHYS_VIRT_OFFSET;
 
 const PA_1TB_BITS: usize = 40;
 const VA_MAX_BITS: usize = 48;
@@ -61,13 +61,17 @@ impl PhysAddr {
 }
 
 impl VirtAddr {
-    pub const MAX: usize = (1 << VA_MAX_BITS) - 1;
-    pub const TOP_BASE: usize = 0xffff_0000_0000_0000;
-
     pub const fn new(va: usize) -> Self {
-        let top_bits = va >> VA_MAX_BITS;
-        if top_bits != 0 && top_bits != 0xffff {
-            panic!("invalid VA!")
+        if cfg!(target_arch = "x86_64") {
+            let top_bits = va >> (VA_MAX_BITS - 1);
+            if top_bits != 0 && top_bits != 0x1ffff {
+                panic!("invalid VA!")
+            }
+        } else if cfg!(target_arch = "aarch64") {
+            let top_bits = va >> VA_MAX_BITS;
+            if top_bits != 0 && top_bits != 0xffff {
+                panic!("invalid VA!")
+            }
         }
         Self(va)
     }

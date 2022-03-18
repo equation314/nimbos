@@ -129,7 +129,7 @@ impl Task {
         let (entry, ustack_top) = vm.load_user(elf_data);
 
         let mut t = Self::new_common(TaskId::alloc());
-        t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top)));
+        t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top, 0)));
         t.ctx
             .get_mut()
             .init(task_entry as _, t.kstack.top(), vm.page_table_root());
@@ -263,7 +263,7 @@ impl<'a> CurrentTask<'a> {
             let mut vm = self.vm.as_ref().unwrap().lock();
             vm.clear();
             let (entry, ustack_top) = vm.load_user(elf_data);
-            *tf = TrapFrame::new_user(entry, ustack_top);
+            *tf = TrapFrame::new_user(entry, ustack_top, 0);
             instructions::flush_tlb_all();
             0
         } else {

@@ -4,10 +4,11 @@
 use core::marker::PhantomData;
 use core::mem::{align_of, size_of, MaybeUninit};
 
-use crate::config::USER_ASPACE_RANGE;
+use crate::arch::consts::{USER_ASPACE_BASE, USER_ASPACE_SIZE};
 
+#[allow(clippy::absurd_extreme_comparisons)]
 const fn uaccess_ok(vaddr: usize, size: usize) -> bool {
-    vaddr != 0 && USER_ASPACE_RANGE.start <= vaddr && vaddr <= USER_ASPACE_RANGE.end - size
+    vaddr != 0 && USER_ASPACE_BASE <= vaddr && vaddr - USER_ASPACE_BASE <= USER_ASPACE_SIZE - size
 }
 
 unsafe fn copy_from_user<T>(kdst: *mut T, usrc: *const T, len: usize) {
@@ -26,7 +27,7 @@ unsafe fn copy_from_user_str(kdst: *mut u8, usrc: *const u8, max_len: usize) -> 
     let mut kdst = kdst;
     let mut usrc = usrc;
     while len < max_len {
-        assert!((usrc as usize) < USER_ASPACE_RANGE.end);
+        assert!((usrc as usize) < USER_ASPACE_BASE + USER_ASPACE_SIZE);
         let c = usrc.read();
         if c == b'\0' {
             break;

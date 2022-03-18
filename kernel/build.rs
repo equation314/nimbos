@@ -10,7 +10,9 @@ fn main() {
 
 fn insert_app_data() -> Result<()> {
     let target = std::env::var("TARGET").unwrap();
-    let arch = if target.contains("aarch64") {
+    let arch = if target.contains("x86_64") {
+        "x86_64"
+    } else if target.contains("aarch64") {
         "aarch64"
     } else {
         panic!("Unsupported architecture: {}", target);
@@ -27,7 +29,7 @@ fn insert_app_data() -> Result<()> {
     writeln!(
         f,
         r#"
-    .align 3
+    .p2align 3
     .section .data
     .global _app_count
 _app_count:
@@ -49,7 +51,7 @@ _app_count:
     .section .data
 app_{0}_name:
     .string "{1}"
-    .align 3
+    .p2align 3
 app_{0}_start:
     .incbin "{2}"
 app_{0}_end:"#,

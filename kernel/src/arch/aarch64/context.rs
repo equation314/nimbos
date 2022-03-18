@@ -18,7 +18,9 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn new_user(entry: usize, ustack_top: usize) -> Self {
+    pub fn new_user(entry: usize, ustack_top: usize, arg0: usize) -> Self {
+        let mut regs = [0; 31];
+        regs[0] = arg0 as _;
         Self {
             usp: ustack_top as _,
             elr: entry as _,
@@ -28,18 +30,18 @@ impl TrapFrame {
                 + SPSR_EL1::I::Unmasked
                 + SPSR_EL1::F::Masked)
                 .value, // enable IRQ, mask others
-            ..Default::default()
+            r: regs,
         }
     }
 
-    pub fn new_clone(&self, ustack_top: usize) -> Self {
+    pub const fn new_clone(&self, ustack_top: usize) -> Self {
         let mut tf = *self;
         tf.usp = ustack_top as _;
         tf.r[0] = 0; // for child thread, clone returns 0
         tf
     }
 
-    pub fn new_fork(&self) -> Self {
+    pub const fn new_fork(&self) -> Self {
         let mut tf = *self;
         tf.r[0] = 0; // for child process, fork returns 0
         tf

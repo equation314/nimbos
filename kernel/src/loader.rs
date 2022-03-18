@@ -7,7 +7,8 @@ extern "C" {
 }
 
 pub fn get_app_count() -> usize {
-    unsafe { (_app_count as *const u64).read() as usize }
+    0
+    // unsafe { (_app_count as *const u64).read() as usize }
 }
 
 pub fn get_app_name(app_id: usize) -> &'static str {

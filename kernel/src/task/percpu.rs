@@ -9,7 +9,9 @@ use crate::sync::LazyInit;
 static CPUS: [LazyInit<PerCpu>; MAX_CPUS] = [LazyInit::new(); MAX_CPUS];
 
 /// Each CPU can only accesses its own `PerCpu` instance.
+#[repr(C)]
 pub struct PerCpu {
+    self_vaddr: usize,
     _id: usize,
     current_task: UnsafeCell<Arc<Task>>,
     idle_task: Arc<Task>,
@@ -21,6 +23,7 @@ impl PerCpu {
     fn new(id: usize) -> Self {
         let idle_task = Task::new_idle();
         Self {
+            self_vaddr: &CPUS[id] as *const _ as usize,
             _id: id,
             current_task: UnsafeCell::new(idle_task.clone()),
             idle_task,
@@ -53,5 +56,5 @@ impl PerCpu {
 pub(super) fn init_percpu() {
     let cpu_id = 0;
     CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
-    unsafe { instructions::set_thread_pointer(&*CPUS[cpu_id] as *const PerCpu as usize) };
+    unsafe { instructions::set_thread_pointer(CPUS[cpu_id].self_vaddr) };
 }

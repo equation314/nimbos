@@ -1,10 +1,12 @@
 # Arguments
-ARCH ?= aarch64
+ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
 
 # Platform
-ifeq ($(ARCH), aarch64)
+ifeq ($(ARCH), x86_64)
+  PLATFORM ?= pc
+else ifeq ($(ARCH), aarch64)
   PLATFORM ?= qemu-virt-arm
 endif
 
@@ -33,7 +35,14 @@ GDB := gdb-multiarch
 # QEMU
 qemu := qemu-system-$(ARCH)
 qemu_args := -nographic
-ifeq ($(ARCH), aarch64)
+ifeq ($(ARCH), x86_64)
+  qemu_args += \
+    -machine q35 \
+	-cpu host \
+	-accel kvm \
+	-serial mon:stdio \
+    -kernel $(kernel_bin)
+else ifeq ($(ARCH), aarch64)
   qemu_args += \
     -cpu cortex-a72 \
     -machine virt \
@@ -71,7 +80,9 @@ clippy:
 disasm:
 	@$(OBJDUMP) $(kernel_elf) | less
 
-run: build
+run: build justrun
+
+justrun:
 	$(qemu) $(qemu_args)
 
 debug: build
