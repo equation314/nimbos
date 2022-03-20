@@ -7,7 +7,7 @@ use super::percpu::PerCpu;
 use crate::arch::{instructions, TaskContext, TrapFrame};
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
-use crate::mm::{MemorySet, PhysAddr};
+use crate::mm::{kernel_aspace, MemorySet, VirtAddr};
 use crate::sync::{LazyInit, Mutex};
 
 pub static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
@@ -112,9 +112,12 @@ impl Task {
             pc: entry as usize,
             arg,
         };
-        t.ctx
-            .get_mut()
-            .init(task_entry as _, t.kstack.top(), PhysAddr::new(0));
+        t.ctx.get_mut().init(
+            task_entry as _,
+            t.kstack.top(),
+            kernel_aspace().page_table_root(),
+            true,
+        );
 
         let t = Arc::new(t);
         if !t.is_root() {
@@ -132,7 +135,7 @@ impl Task {
         t.entry = EntryState::User(Box::new(TrapFrame::new_user(entry, ustack_top, 0)));
         t.ctx
             .get_mut()
-            .init(task_entry as _, t.kstack.top(), vm.page_table_root());
+            .init(task_entry as _, t.kstack.top(), vm.page_table_root(), false);
         t.vm = Some(Arc::new(Mutex::new(vm)));
 
         let t = Arc::new(t);
@@ -145,10 +148,13 @@ impl Task {
         let mut t = Self::new_common(TaskId::alloc());
         t.is_shared = true;
         let vm = self.vm.as_ref().unwrap().clone();
-        t.entry = EntryState::User(Box::new(tf.new_clone(newsp)));
-        t.ctx
-            .get_mut()
-            .init(task_entry as _, t.kstack.top(), vm.lock().page_table_root());
+        t.entry = EntryState::User(Box::new(tf.new_clone(VirtAddr::new(newsp))));
+        t.ctx.get_mut().init(
+            task_entry as _,
+            t.kstack.top(),
+            vm.lock().page_table_root(),
+            false,
+        );
         t.vm = Some(vm);
 
         let t = Arc::new(t);
@@ -163,7 +169,7 @@ impl Task {
         t.entry = EntryState::User(Box::new(tf.new_fork()));
         t.ctx
             .get_mut()
-            .init(task_entry as _, t.kstack.top(), vm.page_table_root());
+            .init(task_entry as _, t.kstack.top(), vm.page_table_root(), false);
         t.vm = Some(Arc::new(Mutex::new(vm)));
 
         let t = Arc::new(t);
@@ -307,7 +313,7 @@ impl<const N: usize> Stack<N> {
         Self(Box::from(alloc::vec![0; N]))
     }
 
-    pub fn top(&self) -> usize {
-        self.0.as_ptr_range().end as usize
+    pub fn top(&self) -> VirtAddr {
+        VirtAddr::new(self.0.as_ptr_range().end as usize)
     }
 }

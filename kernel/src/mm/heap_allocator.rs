@@ -30,11 +30,10 @@ unsafe impl GlobalAlloc for LockedHeap {
         self.0.lock().dealloc(NonNull::new_unchecked(ptr), layout)
     }
 }
-
-#[global_allocator]
+#[cfg_attr(not(test), global_allocator)]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-#[alloc_error_handler]
+#[cfg_attr(not(test), alloc_error_handler)]
 pub fn handle_alloc_error(layout: Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
@@ -44,7 +43,7 @@ static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 pub fn init_heap() {
     let heap_start = unsafe { HEAP_SPACE.as_ptr() as usize };
     println!(
-        "Initialising kernel heap at: [{:#x}, {:#x})",
+        "Initializing kernel heap at: [{:#x}, {:#x})",
         heap_start,
         heap_start + KERNEL_HEAP_SIZE
     );

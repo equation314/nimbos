@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::mm::PhysAddr;
+use crate::mm::{PhysAddr, VirtAddr};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
@@ -36,21 +36,21 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn new_user(entry: usize, ustack_top: usize, arg0: usize) -> Self {
+    pub fn new_user(entry: VirtAddr, ustack_top: VirtAddr, arg0: usize) -> Self {
         Self {
             rdi: arg0 as _,
-            rip: entry as _,
+            rip: entry.as_usize() as _,
             cs: 0x20 | 3,
-            rflags: 0x3000 | 0x200 | 0x2, // IOPL = 3, IF = 1 (FIXME: set IOPL = 0 when IO port bitmap is supported)
-            user_rsp: ustack_top as _,
+            rflags: 0x3202, // IOPL = 3, IF = 1 (FIXME: set IOPL = 0 when IO port bitmap is supported)
+            user_rsp: ustack_top.as_usize() as _,
             user_ss: 0x28 | 3,
             ..Default::default()
         }
     }
 
-    pub const fn new_clone(&self, ustack_top: usize) -> Self {
+    pub const fn new_clone(&self, ustack_top: VirtAddr) -> Self {
         let mut tf = *self;
-        tf.user_rsp = ustack_top as _;
+        tf.user_rsp = ustack_top.as_usize() as _;
         tf.rax = 0; // for child thread, clone returns 0
         tf
     }
@@ -61,54 +61,28 @@ impl TrapFrame {
         tf
     }
 
-    pub unsafe fn exec(&self, kstack_top: usize) -> ! {
-        asm!(
-            "
-            // mov     sp, x1
-            // ldp     x30, x9, [x0, 30 * 8]
-            // ldp     x10, x11, [x0, 32 * 8]
-            // msr     sp_el0, x9
-            // msr     elr_el1, x10
-            // msr     spsr_el1, x11
-
-            // ldp     x28, x29, [x0, 28 * 8]
-            // ldp     x26, x27, [x0, 26 * 8]
-            // ldp     x24, x25, [x0, 24 * 8]
-            // ldp     x22, x23, [x0, 22 * 8]
-            // ldp     x20, x21, [x0, 20 * 8]
-            // ldp     x18, x19, [x0, 18 * 8]
-            // ldp     x16, x17, [x0, 16 * 8]
-            // ldp     x14, x15, [x0, 14 * 8]
-            // ldp     x12, x13, [x0, 12 * 8]
-            // ldp     x10, x11, [x0, 10 * 8]
-            // ldp     x8, x9, [x0, 8 * 8]
-            // ldp     x6, x7, [x0, 6 * 8]
-            // ldp     x4, x5, [x0, 4 * 8]
-            // ldp     x2, x3, [x0, 2 * 8]
-            // ldp     x0, x1, [x0]
-
-            iret",
-            // in("x0") self,
-            // in("x1") kstack_top,
-            options(noreturn),
-        )
+    pub unsafe fn exec(&self, _kstack_top: VirtAddr) -> ! {
+        unimplemented!()
     }
+}
+
+#[repr(C)]
+#[derive(Debug, Default)]
+struct ContextSwitchFrame {
+    r15: u64,
+    r14: u64,
+    r13: u64,
+    r12: u64,
+    rbx: u64,
+    rbp: u64,
+    rflags: u64,
+    rip: u64,
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct TaskContext {
-    pub r12: u64,
-    pub r13: u64,
-    pub r14: u64,
-    pub r15: u64,
-    pub rbx: u64,
-    pub rbp: u64,
-
-    pub rflags: u64,
     pub rsp: u64,
-    pub rip: u64,
-
     pub fs_base: u64,
     pub cr3: u64,
 }
@@ -118,46 +92,58 @@ impl TaskContext {
         unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
     }
 
-    pub fn init(&mut self, entry: usize, kstack_top: usize, page_table_root: PhysAddr) {
-        self.rsp = kstack_top as u64;
-        self.rip = entry as u64;
+    pub fn init(
+        &mut self,
+        entry: usize,
+        kstack_top: VirtAddr,
+        page_table_root: PhysAddr,
+        _is_kernel: bool,
+    ) {
+        unsafe {
+            let frame_ptr = (kstack_top.as_mut_ptr() as *mut ContextSwitchFrame).sub(1);
+            core::ptr::write(
+                frame_ptr,
+                ContextSwitchFrame {
+                    rip: entry as _,
+                    rflags: 0x3002, // IOPL = 3, IF = 0
+                    ..Default::default()
+                },
+            );
+            self.rsp = frame_ptr as u64;
+        }
         self.cr3 = page_table_root.as_usize() as u64;
     }
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            crate::arch::instructions::activate_paging(next_ctx.cr3 as usize, false);
-            context_switch(self, next_ctx)
+            crate::arch::instructions::set_user_page_table_root(next_ctx.cr3 as usize);
+            // TODO: swtich fs_base
+            context_switch(&mut self.rsp, &next_ctx.rsp)
         }
     }
 }
 
 #[naked]
-unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
+unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64) {
     asm!(
         "
-        // save old context (callee-saved registers)
-        // stp     x29, x30, [x0, 12 * 8]
-        // stp     x27, x28, [x0, 10 * 8]
-        // stp     x25, x26, [x0, 8 * 8]
-        // stp     x23, x24, [x0, 6 * 8]
-        // stp     x21, x22, [x0, 4 * 8]
-        // stp     x19, x20, [x0, 2 * 8]
-        // mov     x19, sp
-        // mrs     x20, tpidr_el0
-        // stp     x19, x20, [x0]
+        pushf
+        push    rbp
+        push    rbx
+        push    r12
+        push    r13
+        push    r14
+        push    r15
+        mov     [rdi], rsp
 
-        // restore new context
-        // ldp     x19, x20, [x1]
-        // mov     sp, x19
-        // msr     tpidr_el0, x20
-        // ldp     x19, x20, [x1, 2 * 8]
-        // ldp     x21, x22, [x1, 4 * 8]
-        // ldp     x23, x24, [x1, 6 * 8]
-        // ldp     x25, x26, [x1, 8 * 8]
-        // ldp     x27, x28, [x1, 10 * 8]
-        // ldp     x29, x30, [x1, 12 * 8]
-
+        mov     rsp, [rsi]
+        pop     r15
+        pop     r14
+        pop     r13
+        pop     r12
+        pop     rbx
+        pop     rbp
+        popf
         ret",
         options(noreturn),
     )

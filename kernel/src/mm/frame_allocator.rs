@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
-use crate::platform::consts::MEMORY_END;
+use crate::platform::mem::PHYS_MEMORY_END;
 use crate::sync::SpinNoIrqLock;
 use crate::utils::FreeListAllocator;
 
@@ -58,9 +58,9 @@ pub fn init_frame_allocator() {
         fn ekernel();
     }
     let start_paddr = PhysAddr::new(virt_to_phys(ekernel as usize)).align_up();
-    let end_paddr = PhysAddr::new(MEMORY_END).align_down();
+    let end_paddr = PhysAddr::new(PHYS_MEMORY_END).align_down();
     println!(
-        "Initialising frame allocator at: [{:#x?}, {:#x?})",
+        "Initializing frame allocator at: [{:#x?}, {:#x?})",
         start_paddr, end_paddr
     );
     FRAME_ALLOCATOR

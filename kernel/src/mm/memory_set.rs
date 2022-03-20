@@ -6,7 +6,7 @@ use super::{MemFlags, PhysFrame, PAGE_SIZE};
 use crate::arch::{instructions, PageTable};
 use crate::config::{USER_STACK_BASE, USER_STACK_SIZE};
 use crate::mm::{PhysAddr, VirtAddr};
-use crate::platform::consts::{MEMORY_END, MMIO_REGIONS};
+use crate::platform::mem::{MMIO_REGIONS, PHYS_MEMORY_END};
 use crate::sync::LazyInit;
 
 extern "C" {
@@ -23,7 +23,7 @@ extern "C" {
     fn ekernel();
 }
 
-static KERNEL_SPACE: LazyInit<MemorySet> = LazyInit::new();
+static KERNEL_ASPACE: LazyInit<MemorySet> = LazyInit::new();
 
 enum Mapper {
     Offset(usize),
@@ -158,7 +158,7 @@ impl MemorySet {
         }
     }
 
-    pub fn load_user(&mut self, elf_data: &[u8]) -> (usize, usize) {
+    pub fn load_user(&mut self, elf_data: &[u8]) -> (VirtAddr, VirtAddr) {
         use xmas_elf::program::{Flags, SegmentData, Type};
         use xmas_elf::{header, ElfFile};
 
@@ -224,8 +224,8 @@ impl MemorySet {
             MemFlags::READ | MemFlags::WRITE | MemFlags::USER,
         ));
 
-        let entry = elf.header.pt2.entry_point() as usize;
-        let ustack_top = USER_STACK_BASE + USER_STACK_SIZE;
+        let entry = VirtAddr::new(elf.header.pt2.entry_point() as usize);
+        let ustack_top = VirtAddr::new(USER_STACK_BASE + USER_STACK_SIZE);
         (entry, ustack_top)
     }
 
@@ -255,7 +255,11 @@ impl Drop for MemorySet {
     }
 }
 
-pub fn init_paging() {
+pub fn kernel_aspace<'a>() -> &'a MemorySet {
+    &KERNEL_ASPACE
+}
+
+pub fn init_kernel_aspace() {
     let mut ms = MemorySet::new();
     let mut map_range = |start: usize, end: usize, flags: MemFlags, name: &str| {
         println!("Mapping {}: [{:#x}, {:#x})", name, start, end);
@@ -303,7 +307,7 @@ pub fn init_paging() {
     );
     map_range(
         ekernel as usize,
-        phys_to_virt(MEMORY_END),
+        phys_to_virt(PHYS_MEMORY_END),
         MemFlags::READ | MemFlags::WRITE,
         "physical memory",
     );
@@ -317,11 +321,8 @@ pub fn init_paging() {
     }
 
     let page_table_root = ms.page_table_root();
-    KERNEL_SPACE.init_by(ms);
-    unsafe {
-        instructions::activate_paging(page_table_root.as_usize(), true); // set TTBR0 to zero for kernel tasks
-        instructions::activate_paging(0, false); // set TTBR0 to zero for kernel tasks
-    }
+    KERNEL_ASPACE.init_by(ms);
+    unsafe { instructions::set_kernel_page_table_root(page_table_root.as_usize()) };
 }
 
 impl fmt::Debug for MapArea {
@@ -349,13 +350,15 @@ impl fmt::Debug for MemorySet {
 
 #[allow(unused)]
 pub fn remap_test() {
-    let pt = &KERNEL_SPACE.pt;
+    let pt = &KERNEL_ASPACE.pt;
     let mid_text = VirtAddr::new(stext as usize + (etext as usize - stext as usize) / 2);
     let mid_rodata = VirtAddr::new(srodata as usize + (erodata as usize - srodata as usize) / 2);
     let mid_data = VirtAddr::new(sdata as usize + (edata as usize - sdata as usize) / 2);
-    let mid_mmio = VirtAddr::new(phys_to_virt(MMIO_REGIONS[0].0));
     assert!(!pt.query(mid_text).unwrap().1.contains(MemFlags::WRITE));
     assert!(!pt.query(mid_rodata).unwrap().1.contains(MemFlags::EXECUTE));
-    assert!(pt.query(mid_mmio).unwrap().1.contains(MemFlags::DEVICE));
+    if let Some(region) = MMIO_REGIONS.first() {
+        let mid_mmio = VirtAddr::new(phys_to_virt(region.0));
+        assert!(pt.query(mid_mmio).unwrap().1.contains(MemFlags::DEVICE));
+    }
     println!("remap_test passed!");
 }

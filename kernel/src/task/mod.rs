@@ -19,7 +19,7 @@ pub fn is_init() -> bool {
 }
 
 pub fn init() {
-    println!("Initialising task manager...");
+    println!("Initializing task manager...");
 
     percpu::init_percpu();
     manager::init();
@@ -30,7 +30,9 @@ pub fn init() {
             let mut exit_code = 0;
             while curr_task.waitpid(-1, &mut exit_code) > 0 {}
             if curr_task.children.lock().len() == 0 {
-                instructions::wait_for_ints();
+                // instructions::wait_for_ints();
+                info!("No more tasks to run, shutdown!");
+                crate::drivers::misc::shutdown();
             } else {
                 curr_task.yield_now();
             }
@@ -51,7 +53,7 @@ pub fn init() {
     m.spawn(ROOT_TASK.clone());
     m.spawn(Task::new_kernel(test_kernel_task, 0xdead));
     m.spawn(Task::new_kernel(test_kernel_task, 0xbeef));
-    m.spawn(Task::new_user("user_shell"));
+    // m.spawn(Task::new_user("user_shell"));
 
     TASK_INITED.store(true, Ordering::SeqCst);
 }

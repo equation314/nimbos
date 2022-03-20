@@ -1,6 +1,6 @@
 use core::arch::{asm, global_asm};
 
-use crate::arch::consts::PHYS_VIRT_OFFSET;
+use super::mem::PHYS_VIRT_OFFSET;
 use crate::config::BOOT_KERNEL_STACK_SIZE;
 
 const MULTIBOOT_HEADER_MAGIC: u32 = 0x1BAD_B002;

@@ -7,7 +7,7 @@ mod uaccess;
 
 pub use address::{PhysAddr, VirtAddr};
 pub use frame_allocator::PhysFrame;
-pub use memory_set::{remap_test, MapArea, MemorySet};
+pub use memory_set::{kernel_aspace, MapArea, MemorySet};
 pub use paging::{GenericPTE, PageTableImpl};
 pub use uaccess::{UserInOutPtr, UserInPtr, UserOutPtr};
 
@@ -26,5 +26,5 @@ bitflags::bitflags! {
 pub fn init() {
     heap_allocator::init_heap();
     frame_allocator::init_frame_allocator();
-    memory_set::init_paging();
+    memory_set::init_kernel_aspace();
 }

@@ -9,7 +9,7 @@ edition = "2021"
 [features]
 platform-pc = []
 platform-qemu-virt-arm = []
-default = []
+default = ["platform-pc"]
 
 [dependencies]
 log = "0.4"

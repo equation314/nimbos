@@ -1,3 +1,3 @@
 mod boot;
 
-pub mod consts;
+pub mod mem;

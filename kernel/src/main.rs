@@ -1,5 +1,5 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_main)]
 #![feature(asm_sym)]
 #![feature(asm_const)]
 #![feature(naked_functions)]
@@ -22,7 +22,6 @@ mod logging;
 mod arch;
 mod config;
 mod drivers;
-mod lang_items;
 mod loader;
 mod mm;
 mod platform;
@@ -30,6 +29,9 @@ mod sync;
 mod syscall;
 mod task;
 mod utils;
+
+#[cfg(not(test))]
+mod lang_items;
 
 fn clear_bss() {
     extern "C" {
@@ -58,15 +60,13 @@ NN   NN  iii  mmm  mm  mm  bbbbbb    OOOO0    SSSSS
 pub fn rust_main() -> ! {
     clear_bss();
     drivers::init_early();
-    logging::init();
     println!("{}", LOGO);
-    info!("Logging is enabled.");
 
     arch::init();
-    crate::drivers::misc::shutdown();
-
     mm::init();
     drivers::init();
+    logging::init();
+    info!("Logging is enabled.");
 
     task::init();
     loader::list_apps();

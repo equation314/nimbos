@@ -22,7 +22,7 @@ kernel_bin := $(kernel_elf).bin
 # Cargo features and build args
 features := platform-$(PLATFORM)
 
-build_args := --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
+build_args := --no-default-features --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
 ifeq ($(MODE), release)
   build_args += --release
 endif
@@ -34,7 +34,7 @@ GDB := gdb-multiarch
 
 # QEMU
 qemu := qemu-system-$(ARCH)
-qemu_args := -nographic
+qemu_args := -nographic -m 128M
 ifeq ($(ARCH), x86_64)
   qemu_args += \
     -machine q35 \
@@ -55,7 +55,6 @@ GDB := gdb-multiarch
 build: $(kernel_bin)
 
 env:
-	(rustup target list | grep "$(target) (installed)") || rustup target add $(target)
 	cargo install cargo-binutils --vers =0.3.3
 	rustup component add rust-src
 	rustup component add llvm-tools-preview

@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 mod multiboot;
 
-pub mod consts;
+pub mod mem;

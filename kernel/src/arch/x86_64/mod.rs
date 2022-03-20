@@ -2,7 +2,6 @@ mod context;
 mod page_table;
 // mod trap;
 
-pub mod consts;
 pub mod instructions;
 
 pub use self::context::{TaskContext, TrapFrame};

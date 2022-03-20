@@ -6,7 +6,7 @@ use x86_64::registers::rflags::{self, RFlags};
 
 #[inline]
 pub fn enable_irqs() {
-    unsafe { asm!("sti") };
+    // unsafe { asm!("sti") }; FIXME
 }
 
 #[inline]
@@ -30,8 +30,17 @@ pub unsafe fn set_thread_pointer(tp: usize) {
     wrmsr(IA32_GS_BASE, tp as _)
 }
 
-pub unsafe fn activate_paging(page_table_root: usize, _is_kernel: bool) {
-    cr3_write(page_table_root as _)
+pub unsafe fn set_kernel_page_table_root(root_paddr: usize) {
+    // x86 does not has separate page tables for kernel and user.
+    set_user_page_table_root(root_paddr);
+}
+
+pub unsafe fn set_user_page_table_root(root_paddr: usize) {
+    let old_root = cr3();
+    debug!("Set page table root: {:#x} => {:#x}", old_root, root_paddr);
+    if old_root != root_paddr as u64 {
+        cr3_write(root_paddr as u64);
+    }
 }
 
 pub fn flush_tlb_all() {

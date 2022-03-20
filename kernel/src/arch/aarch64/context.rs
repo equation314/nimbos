@@ -2,7 +2,7 @@ use core::arch::asm;
 
 use cortex_a::registers::SPSR_EL1;
 
-use crate::mm::PhysAddr;
+use crate::mm::{PhysAddr, VirtAddr};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
@@ -18,12 +18,12 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn new_user(entry: usize, ustack_top: usize, arg0: usize) -> Self {
+    pub fn new_user(entry: VirtAddr, ustack_top: VirtAddr, arg0: usize) -> Self {
         let mut regs = [0; 31];
         regs[0] = arg0 as _;
         Self {
-            usp: ustack_top as _,
-            elr: entry as _,
+            usp: ustack_top.as_usize() as _,
+            elr: entry.as_usize() as _,
             spsr: (SPSR_EL1::M::EL0t
                 + SPSR_EL1::D::Masked
                 + SPSR_EL1::A::Masked
@@ -34,9 +34,9 @@ impl TrapFrame {
         }
     }
 
-    pub const fn new_clone(&self, ustack_top: usize) -> Self {
+    pub const fn new_clone(&self, ustack_top: VirtAddr) -> Self {
         let mut tf = *self;
-        tf.usp = ustack_top as _;
+        tf.usp = ustack_top.as_usize() as _;
         tf.r[0] = 0; // for child thread, clone returns 0
         tf
     }
@@ -47,7 +47,7 @@ impl TrapFrame {
         tf
     }
 
-    pub unsafe fn exec(&self, kstack_top: usize) -> ! {
+    pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
         asm!("
             mov     sp, x1
             ldp     x30, x9, [x0, 30 * 8]
@@ -74,7 +74,7 @@ impl TrapFrame {
 
             eret",
             in("x0") self,
-            in("x1") kstack_top,
+            in("x1") kstack_top.as_usize(),
             options(noreturn),
         )
     }
@@ -105,15 +105,25 @@ impl TaskContext {
         unsafe { core::mem::MaybeUninit::zeroed().assume_init() }
     }
 
-    pub fn init(&mut self, entry: usize, kstack_top: usize, page_table_root: PhysAddr) {
-        self.sp = kstack_top as u64;
+    pub fn init(
+        &mut self,
+        entry: usize,
+        kstack_top: VirtAddr,
+        page_table_root: PhysAddr,
+        is_kernel: bool,
+    ) {
+        self.sp = kstack_top.as_usize() as u64;
         self.lr = entry as u64;
-        self.ttbr0_el1 = page_table_root.as_usize() as u64;
+        self.ttbr0_el1 = if is_kernel {
+            0
+        } else {
+            page_table_root.as_usize() as u64
+        };
     }
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            crate::arch::instructions::activate_paging(next_ctx.ttbr0_el1 as usize, false);
+            crate::arch::instructions::set_user_page_table_root(next_ctx.ttbr0_el1 as usize);
             context_switch(self, next_ctx)
         }
     }

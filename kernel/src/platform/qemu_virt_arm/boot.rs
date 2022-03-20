@@ -123,8 +123,7 @@ unsafe extern "C" fn _start() -> ! {
         ldr     x8, =boot_stack_top
         mov     sp, x8
         ldr     x8, ={rust_main}
-        br      x8
-        b       .",
+        br      x8",
         switch_to_el1 = sym switch_to_el1,
         init_boot_page_table = sym init_boot_page_table,
         init_mmu = sym init_mmu,
