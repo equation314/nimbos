@@ -15,20 +15,20 @@ export ARCH
 export PLATFORM
 
 # Paths
-target := $(shell cat ../targets.txt | grep $(ARCH))
-kernel_elf := target/$(target)/$(MODE)/nimbos
+target := ../targets/$(ARCH).json
+kernel_elf := target/$(ARCH)/$(MODE)/nimbos
 kernel_bin := $(kernel_elf).bin
 
 # Cargo features and build args
 features := platform-$(PLATFORM)
 
-build_args := --features "$(features)" --target $(target) -Zbuild-std=core,alloc
+build_args := --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
 ifeq ($(MODE), release)
   build_args += --release
 endif
 
 # Binutils
-OBJDUMP := rust-objdump -d --arch-name=$(ARCH) --print-imm-hex
+OBJDUMP := rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
 OBJCOPY := rust-objcopy --binary-architecture=$(ARCH)
 GDB := gdb-multiarch
 
@@ -41,7 +41,7 @@ ifeq ($(ARCH), x86_64)
 	-cpu host \
 	-accel kvm \
 	-serial mon:stdio \
-    -kernel $(kernel_bin)
+    -kernel $(kernel_elf)
 else ifeq ($(ARCH), aarch64)
   qemu_args += \
     -cpu cortex-a72 \

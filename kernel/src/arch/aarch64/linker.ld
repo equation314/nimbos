@@ -8,7 +8,7 @@ SECTIONS
 
     .text : {
         stext = .;
-        *(.text.entry)
+        *(.text.boot)
         *(.text .text.*)
         . = ALIGN(4K);
         etext = .;
@@ -27,6 +27,7 @@ SECTIONS
         *(.data.boot_page_table)
         *(.data .data.*)
         *(.sdata .sdata.*)
+        *(.got .got.*)
         . = ALIGN(4K);
         edata = .;
     }

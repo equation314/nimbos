@@ -2,7 +2,6 @@ use core::fmt::{self, Write};
 
 use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
-use crate::arch::instructions;
 use crate::drivers::{timer::get_time_ns, uart::console_putchar};
 use crate::sync::Mutex;
 use crate::task::CurrentTask;
@@ -22,7 +21,6 @@ impl Write for Stdout {
 
 pub fn init() {
     static LOGGER: SimpleLogger = SimpleLogger;
-    unsafe { instructions::set_thread_pointer(0) };
     log::set_logger(&LOGGER).unwrap();
     log::set_max_level(match option_env!("LOG") {
         Some("error") => LevelFilter::Error,
@@ -94,10 +92,10 @@ impl Log for SimpleLogger {
         }
 
         let now_us = get_time_ns() / 1000;
-        let pid = if instructions::thread_pointer() == 0 {
-            0
-        } else {
+        let pid = if crate::task::is_init() {
             CurrentTask::get().pid().as_usize()
+        } else {
+            0
         };
         let level = record.level();
         let target = record.target();

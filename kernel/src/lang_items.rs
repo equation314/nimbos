@@ -1,4 +1,4 @@
-use crate::drivers::misc::poweroff;
+use crate::drivers::misc::shutdown;
 use core::panic::PanicInfo;
 
 #[panic_handler]
@@ -13,5 +13,5 @@ fn panic(info: &PanicInfo) -> ! {
     } else {
         error!("Panicked: {}", info.message().unwrap());
     }
-    poweroff()
+    shutdown()
 }

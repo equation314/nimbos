@@ -1,7 +1,7 @@
 cfg_if! {
     if #[cfg(feature = "platform-pc")] {
-        mod gicv2;
-        use gicv2 as imp;
+        mod apic;
+        use apic as imp;
     } else if #[cfg(feature = "platform-qemu-virt-arm")] {
         mod gicv2;
         use gicv2 as imp;

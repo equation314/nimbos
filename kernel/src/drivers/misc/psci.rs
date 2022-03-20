@@ -18,7 +18,8 @@ fn psci_hvc_call(func: u32, arg0: usize, arg1: usize, arg2: usize) -> usize {
     ret
 }
 
-pub fn poweroff() -> ! {
+pub fn shutdown() -> ! {
+    warn!("Shutting down...");
     psci_hvc_call(PSCI_SYSTEM_OFF, 0, 0, 0);
     unreachable!("It should shutdown!")
 }

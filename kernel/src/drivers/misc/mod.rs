@@ -8,4 +8,4 @@ cfg_if! {
     }
 }
 
-pub use self::imp::poweroff;
+pub use self::imp::shutdown;

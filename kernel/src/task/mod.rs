@@ -6,10 +6,17 @@ mod structs;
 pub use structs::{CurrentTask, TaskId};
 
 use alloc::sync::Arc;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use self::manager::TASK_MANAGER;
 use self::structs::{Task, ROOT_TASK};
 use crate::arch::instructions;
+
+static TASK_INITED: AtomicBool = AtomicBool::new(false);
+
+pub fn is_init() -> bool {
+    TASK_INITED.load(Ordering::SeqCst)
+}
 
 pub fn init() {
     println!("Initialising task manager...");
@@ -45,6 +52,8 @@ pub fn init() {
     m.spawn(Task::new_kernel(test_kernel_task, 0xdead));
     m.spawn(Task::new_kernel(test_kernel_task, 0xbeef));
     m.spawn(Task::new_user("user_shell"));
+
+    TASK_INITED.store(true, Ordering::SeqCst);
 }
 
 pub fn spawn_task(task: Arc<Task>) {

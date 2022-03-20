@@ -1,3 +1,3 @@
-mod entry;
+mod boot;
 
 pub mod consts;

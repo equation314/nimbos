@@ -111,7 +111,7 @@ unsafe fn init_boot_page_table() {
 
 #[naked]
 #[no_mangle]
-#[link_section = ".text.entry"]
+#[link_section = ".text.boot"]
 unsafe extern "C" fn _start() -> ! {
     // PC = 0x4008_0000
     asm!("

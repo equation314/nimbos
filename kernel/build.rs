@@ -10,14 +10,7 @@ fn main() {
 
 fn insert_app_data() -> Result<()> {
     let target = std::env::var("TARGET").unwrap();
-    let arch = if target.contains("x86_64") {
-        "x86_64"
-    } else if target.contains("aarch64") {
-        "aarch64"
-    } else {
-        panic!("Unsupported architecture: {}", target);
-    };
-    let app_path = Path::new("../user/build/").join(arch);
+    let app_path = Path::new("../user/build/").join(target);
 
     let mut f = File::create("src/link_app.S")?;
     let mut apps: Vec<_> = read_dir(&app_path)?

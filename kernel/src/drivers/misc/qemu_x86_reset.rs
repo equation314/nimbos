@@ -1,4 +1,7 @@
-pub fn poweroff() -> ! {
-    unsafe { core::arch::asm!("out dx, ax", in("edx") 0x604, in("eax") 0x2000) };
+use x86_64::instructions::port::PortWriteOnly;
+
+pub fn shutdown() -> ! {
+    warn!("Shutting down...");
+    unsafe { PortWriteOnly::new(0x604).write(0x2000u16) };
     unreachable!("It should shutdown!")
 }

@@ -1,11 +1,14 @@
 #![no_std]
 #![no_main]
 #![feature(asm_sym)]
+#![feature(asm_const)]
 #![feature(naked_functions)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_maybe_uninit_zeroed)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
 extern crate alloc;
 #[macro_use]
@@ -54,14 +57,16 @@ NN   NN  iii  mmm  mm  mm  bbbbbb    OOOO0    SSSSS
 
 pub fn rust_main() -> ! {
     clear_bss();
+    drivers::init_early();
+    logging::init();
     println!("{}", LOGO);
+    info!("Logging is enabled.");
 
     arch::init();
-    mm::init();
+    crate::drivers::misc::shutdown();
 
+    mm::init();
     drivers::init();
-    logging::init();
-    info!("Logging is enabled.");
 
     task::init();
     loader::list_apps();
