@@ -1,4 +1,4 @@
-pub const PHYS_MEMORY_START: usize = 0x4000_0000;
+pub const PHYS_MEMORY_START: usize = 0;
 pub const PHYS_MEMORY_SIZE: usize = 0x800_0000; // 128M
 pub const PHYS_MEMORY_END: usize = PHYS_MEMORY_START + PHYS_MEMORY_SIZE;
 

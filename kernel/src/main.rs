@@ -57,9 +57,11 @@ NN   NN  iii  mmm  mm  mm  bbbbbb    OOOO0    SSSSS
            /____/ \____/  /____/ /____/
 ";
 
+#[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
     drivers::init_early();
+    mm::init_heap_early();
     println!("{}", LOGO);
 
     arch::init();

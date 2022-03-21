@@ -53,7 +53,7 @@ impl From<MemFlags> for PTF {
 pub struct PageTableEntry(u64);
 
 impl PageTableEntry {
-    const PHYS_ADDR_MASK: usize = 0x000f_ffff_ffff_f000; // 12..52;
+    const PHYS_ADDR_MASK: usize = 0x000f_ffff_ffff_f000; // 12..52
 }
 
 impl GenericPTE for PageTableEntry {

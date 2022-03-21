@@ -1,5 +1,6 @@
 use buddy_system_allocator::Heap;
 use core::alloc::{GlobalAlloc, Layout};
+use core::mem::size_of;
 use core::ptr::NonNull;
 
 use crate::config::KERNEL_HEAP_SIZE;
@@ -38,7 +39,8 @@ pub fn handle_alloc_error(layout: Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
-static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+static mut HEAP_SPACE: [u64; KERNEL_HEAP_SIZE / size_of::<u64>()] =
+    [0; KERNEL_HEAP_SIZE / size_of::<u64>()];
 
 pub fn init_heap() {
     let heap_start = unsafe { HEAP_SPACE.as_ptr() as usize };

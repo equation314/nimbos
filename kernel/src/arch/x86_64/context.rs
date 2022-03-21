@@ -41,7 +41,7 @@ impl TrapFrame {
             rdi: arg0 as _,
             rip: entry.as_usize() as _,
             cs: 0x20 | 3,
-            rflags: 0x3202, // IOPL = 3, IF = 1 (FIXME: set IOPL = 0 when IO port bitmap is supported)
+            rflags: 0x202, // IOPL = 0, IF = 1
             user_rsp: ustack_top.as_usize() as _,
             user_ss: 0x28 | 3,
             ..Default::default()
@@ -105,7 +105,7 @@ impl TaskContext {
                 frame_ptr,
                 ContextSwitchFrame {
                     rip: entry as _,
-                    rflags: 0x3002, // IOPL = 3, IF = 0
+                    rflags: 0x2, // IOPL = 0, IF = 0
                     ..Default::default()
                 },
             );

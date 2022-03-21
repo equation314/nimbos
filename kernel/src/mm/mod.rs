@@ -23,8 +23,11 @@ bitflags::bitflags! {
     }
 }
 
-pub fn init() {
+pub fn init_heap_early() {
     heap_allocator::init_heap();
+}
+
+pub fn init() {
     frame_allocator::init_frame_allocator();
     memory_set::init_kernel_aspace();
 }
