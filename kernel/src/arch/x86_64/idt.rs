@@ -9,9 +9,9 @@ use crate::sync::LazyInit;
 
 const NUM_INT: usize = 256;
 
-static IDT: LazyInit<IdtStruct> = LazyInit::new();
+pub(super) static IDT: LazyInit<IdtStruct> = LazyInit::new();
 
-struct IdtStruct {
+pub(super) struct IdtStruct {
     table: &'static mut InterruptDescriptorTable,
 }
 
@@ -42,7 +42,7 @@ impl IdtStruct {
         }
     }
 
-    fn load(&self) {
+    pub fn load(&self) {
         unsafe {
             asm!("lidt [{}]", in(reg) &self.pointer(), options(readonly, nostack, preserves_flags))
         }
@@ -53,6 +53,5 @@ pub fn init() {
     println!("Initializing IDT...");
     let mut idt = IdtStruct::alloc();
     idt.init();
-    idt.load();
     IDT.init_by(idt);
 }

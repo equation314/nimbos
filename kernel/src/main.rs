@@ -24,6 +24,7 @@ mod config;
 mod drivers;
 mod loader;
 mod mm;
+mod percpu;
 mod platform;
 mod sync;
 mod syscall;
@@ -61,14 +62,16 @@ NN   NN  iii  mmm  mm  mm  bbbbbb    OOOO0    SSSSS
 pub fn rust_main() -> ! {
     clear_bss();
     drivers::init_early();
-    mm::init_heap_early();
     println!("{}", LOGO);
-
-    arch::init();
-    mm::init();
-    drivers::init();
+    mm::init_heap_early();
     logging::init();
     info!("Logging is enabled.");
+
+    arch::init();
+    percpu::init_percpu();
+
+    mm::init();
+    drivers::init();
 
     task::init();
     loader::list_apps();

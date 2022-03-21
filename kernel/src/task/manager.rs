@@ -1,9 +1,9 @@
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
-use super::percpu::PerCpu;
 use super::schedule::{Scheduler, SimpleScheduler};
 use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
+use crate::percpu::PerCpu;
 use crate::sync::{LazyInit, SpinNoIrqLock};
 
 pub struct TaskManager<S: Scheduler> {
@@ -33,9 +33,11 @@ impl<S: Scheduler> TaskManager<S> {
         // but won't drop them until `waitpid()` is called,
         assert!(Arc::strong_count(curr_task) > 1);
         assert!(Arc::strong_count(&next_task) > 1);
-        PerCpu::current().set_current_task(next_task);
 
-        unsafe { (&mut *curr_ctx_ptr).switch_to(&*next_ctx_ptr) };
+        unsafe {
+            PerCpu::current().set_current_task(next_task);
+            (&mut *curr_ctx_ptr).switch_to(&*next_ctx_ptr);
+        }
     }
 
     fn resched(&mut self, curr_task: &CurrentTask) {
@@ -43,7 +45,7 @@ impl<S: Scheduler> TaskManager<S> {
         if let Some(next_task) = self.scheduler.pick_next_task() {
             self.switch_to(curr_task, next_task);
         } else {
-            self.switch_to(curr_task, PerCpu::idle_task().clone());
+            self.switch_to(curr_task, PerCpu::current().idle_task().clone());
         }
     }
 

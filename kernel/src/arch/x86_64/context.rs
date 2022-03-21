@@ -75,7 +75,6 @@ struct ContextSwitchFrame {
     r12: u64,
     rbx: u64,
     rbp: u64,
-    rflags: u64,
     rip: u64,
 }
 
@@ -105,7 +104,6 @@ impl TaskContext {
                 frame_ptr,
                 ContextSwitchFrame {
                     rip: entry as _,
-                    rflags: 0x2, // IOPL = 0, IF = 0
                     ..Default::default()
                 },
             );
@@ -127,7 +125,6 @@ impl TaskContext {
 unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64) {
     asm!(
         "
-        pushf
         push    rbp
         push    rbx
         push    r12
@@ -143,7 +140,6 @@ unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64)
         pop     r12
         pop     rbx
         pop     rbp
-        popf
         ret",
         options(noreturn),
     )

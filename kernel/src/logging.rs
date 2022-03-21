@@ -3,6 +3,7 @@ use core::fmt::{self, Write};
 use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
 use crate::drivers::{timer::get_time_ns, uart::console_putchar};
+use crate::percpu::PerCpu;
 use crate::sync::Mutex;
 use crate::task::CurrentTask;
 
@@ -91,12 +92,6 @@ impl Log for SimpleLogger {
             return;
         }
 
-        let now_us = get_time_ns() / 1000;
-        let pid = if crate::task::is_init() {
-            CurrentTask::get().pid().as_usize()
-        } else {
-            0
-        };
         let level = record.level();
         let target = record.target();
         let level_color = match level {
@@ -113,15 +108,28 @@ impl Log for SimpleLogger {
             Level::Debug => ColorCode::Cyan,
             Level::Trace => ColorCode::BrightBlack,
         };
-        print(with_color!(
-            ColorCode::White,
-            "[{:>3}.{:06} {} {} {}\n",
-            now_us / 1_000_000,
-            now_us % 1_000_000,
-            with_color!(level_color, "{:<5}", level),
-            with_color!(ColorCode::White, "{}][{}]", target, pid),
-            with_color!(args_color, "{}", record.args()),
-        ));
+        if crate::task::is_init() {
+            let cpu_id = PerCpu::current_cpu_id();
+            let pid = CurrentTask::get().pid().as_usize();
+            let now_us = get_time_ns() / 1000;
+            print(with_color!(
+                ColorCode::White,
+                "[{:>3}.{:06} {} {} {}\n",
+                now_us / 1_000_000,
+                now_us % 1_000_000,
+                with_color!(level_color, "{:<5}", level),
+                with_color!(ColorCode::White, "{}][{}:{}]", target, cpu_id, pid),
+                with_color!(args_color, "{}", record.args()),
+            ));
+        } else {
+            print(with_color!(
+                ColorCode::White,
+                "[{} {} {}\n",
+                with_color!(level_color, "{:<5}", level),
+                with_color!(ColorCode::White, "{}]", target),
+                with_color!(args_color, "{}", record.args()),
+            ));
+        }
     }
 
     fn flush(&self) {}

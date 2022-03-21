@@ -1,15 +1,14 @@
 mod manager;
-mod percpu;
 mod schedule;
 mod structs;
 
-pub use structs::{CurrentTask, TaskId};
+pub use structs::{CurrentTask, Task, TaskId};
 
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use self::manager::TASK_MANAGER;
-use self::structs::{Task, ROOT_TASK};
+use self::structs::ROOT_TASK;
 use crate::arch::instructions;
 
 static TASK_INITED: AtomicBool = AtomicBool::new(false);
@@ -20,8 +19,6 @@ pub fn is_init() -> bool {
 
 pub fn init() {
     println!("Initializing task manager...");
-
-    percpu::init_percpu();
     manager::init();
 
     ROOT_TASK.init_by(Task::new_kernel(

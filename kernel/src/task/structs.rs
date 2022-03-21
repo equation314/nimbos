@@ -3,14 +3,14 @@ use alloc::{boxed::Box, vec::Vec};
 use core::sync::atomic::{AtomicI32, AtomicU8, AtomicUsize, Ordering};
 
 use super::manager::{TaskLockedCell, TASK_MANAGER};
-use super::percpu::PerCpu;
 use crate::arch::{instructions, TaskContext, TrapFrame};
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
 use crate::mm::{kernel_aspace, MemorySet, VirtAddr};
+use crate::percpu::PerCpu;
 use crate::sync::{LazyInit, Mutex};
 
-pub static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
+pub(super) static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
 
 enum EntryState {
     Kernel { pc: usize, arg: usize },
@@ -40,8 +40,8 @@ pub struct Task {
     ctx: TaskLockedCell<TaskContext>,
 
     vm: Option<Arc<Mutex<MemorySet>>>,
-    pub parent: Mutex<Weak<Task>>,
-    pub children: Mutex<Vec<Arc<Task>>>,
+    pub(super) parent: Mutex<Weak<Task>>,
+    pub(super) children: Mutex<Vec<Arc<Task>>>,
 }
 
 impl TaskId {
@@ -93,7 +93,7 @@ impl Task {
         }
     }
 
-    pub fn add_child(self: &Arc<Self>, child: &Arc<Task>) {
+    pub(super) fn add_child(self: &Arc<Self>, child: &Arc<Task>) {
         *child.parent.lock() = Arc::downgrade(self);
         self.children.lock().push(child.clone());
     }
@@ -177,6 +177,10 @@ impl Task {
         t
     }
 
+    pub const fn pid(&self) -> TaskId {
+        self.id
+    }
+
     pub const fn is_kernel_task(&self) -> bool {
         self.is_kernel
     }
@@ -193,15 +197,11 @@ impl Task {
         self.is_shared
     }
 
-    pub const fn pid(&self) -> TaskId {
-        self.id
-    }
-
     pub fn state(&self) -> TaskState {
         self.state.load(Ordering::SeqCst).into()
     }
 
-    pub fn set_state(&self, state: TaskState) {
+    pub(super) fn set_state(&self, state: TaskState) {
         self.state.store(state as u8, Ordering::SeqCst)
     }
 
@@ -209,15 +209,15 @@ impl Task {
         self.exit_code.load(Ordering::SeqCst)
     }
 
-    pub fn set_exit_code(&self, exit_code: i32) {
+    pub(super) fn set_exit_code(&self, exit_code: i32) {
         self.exit_code.store(exit_code, Ordering::SeqCst)
     }
 
-    pub const fn context(&self) -> &TaskLockedCell<TaskContext> {
+    pub(super) const fn context(&self) -> &TaskLockedCell<TaskContext> {
         &self.ctx
     }
 
-    pub fn traverse(self: &Arc<Self>, func: &impl Fn(&Arc<Task>)) {
+    pub(super) fn traverse(self: &Arc<Self>, func: &impl Fn(&Arc<Task>)) {
         func(self);
         for c in self.children.lock().iter() {
             c.traverse(func);
@@ -246,7 +246,7 @@ pub struct CurrentTask<'a>(pub &'a Arc<Task>);
 
 impl<'a> CurrentTask<'a> {
     pub fn get() -> Self {
-        Self(PerCpu::current().current_task())
+        PerCpu::current().current_task()
     }
 
     pub fn yield_now(&self) {

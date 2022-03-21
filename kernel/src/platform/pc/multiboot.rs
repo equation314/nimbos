@@ -48,7 +48,7 @@ multiboot_header:
 entry32:
     // load the temporary GDT
     lgdt    [.Ltmp_gdt_desc_phys - {offset}]
-    mov     ax, 0x10    // data segment selector
+    mov     ax, 0x18    // data segment selector
     mov     ss, ax
     mov     ds, ax
     mov     es, ax
@@ -74,7 +74,7 @@ entry32:
     mov     cr0, eax
 
     // long return to the 64-bit entry
-    push    0x18    // code64 segment selector
+    push    0x10    // code64 segment selector
     lea     eax, [entry64 - {offset}]
     push    eax
     retf
@@ -116,8 +116,8 @@ entry64:
 .Ltmp_gdt:
     .quad 0x0000000000000000    // 0x00: null
     .quad 0x00cf9b000000ffff    // 0x08: code segment (base=0, limit=0xfffff, type=32bit code exec/read, DPL=0, 4k)
-    .quad 0x00cf93000000ffff    // 0x10: data segment (base=0, limit=0xfffff, type=32bit data read/write, DPL=0, 4k)
-    .quad 0x00af9b000000ffff    // 0x18: code segment (base=0, limit=0xfffff, type=64bit code exec/read, DPL=0, 4k)
+    .quad 0x00af9b000000ffff    // 0x10: code segment (base=0, limit=0xfffff, type=64bit code exec/read, DPL=0, 4k)
+    .quad 0x00cf93000000ffff    // 0x18: data segment (base=0, limit=0xfffff, type=32bit data read/write, DPL=0, 4k)
 .Ltmp_gdt_end:
 
 .balign 4096

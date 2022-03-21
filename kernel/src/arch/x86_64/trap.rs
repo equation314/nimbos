@@ -31,7 +31,7 @@ fn x86_trap_handler(tf: &mut TrapFrame) {
         }
         _ => {
             panic!(
-                "Unsupported exception {} (error_code = {:#x}) @ {:#x}: {:#x?}",
+                "Unsupported exception {} (error_code = {:#x}) @ {:#x}:\n{:#x?}",
                 tf.vector, tf.error_code, tf.rip, tf
             );
         }
