@@ -1,14 +1,13 @@
 use core::arch::global_asm;
 
-global_asm!(include_str!("link_app.S"));
+global_asm!(include_str!(concat!(env!("OUT_DIR"), "/link_app.S")));
 
 extern "C" {
     fn _app_count();
 }
 
 pub fn get_app_count() -> usize {
-    0
-    // unsafe { (_app_count as *const u64).read() as usize }
+    unsafe { (_app_count as *const u64).read() as usize }
 }
 
 pub fn get_app_name(app_id: usize) -> &'static str {

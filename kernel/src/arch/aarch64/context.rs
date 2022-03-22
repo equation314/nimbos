@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use cortex_a::registers::SPSR_EL1;
 
+use crate::arch::instructions;
 use crate::mm::{PhysAddr, VirtAddr};
 
 #[repr(C)]
@@ -48,6 +49,13 @@ impl TrapFrame {
     }
 
     pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
+        info!(
+            "user app start: entry={:#x}, ustack={:#x}, kstack={:#x}",
+            self.elr,
+            self.usp,
+            kstack_top.as_usize(),
+        );
+        instructions::disable_irqs();
         asm!("
             mov     sp, x1
             ldp     x30, x9, [x0, 30 * 8]
@@ -123,7 +131,7 @@ impl TaskContext {
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            crate::arch::instructions::set_user_page_table_root(next_ctx.ttbr0_el1 as usize);
+            instructions::set_user_page_table_root(next_ctx.ttbr0_el1 as usize);
             context_switch(self, next_ctx)
         }
     }

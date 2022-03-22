@@ -1,7 +1,16 @@
-ARCH ?= aarch64
+ARCH ?= x86_64
 MODE ?= release
 
-target := $(shell cat ../../targets.txt | grep $(ARCH))
+ifeq ($(ARCH), x86_64)
+  target := x86_64-unknown-none
+  rust_flags := -C relocation-model=static
+else ifeq ($(ARCH), aarch64)
+  target := aarch64-unknown-none
+  rust_flags := -C target-feature=-neon,-fp
+else
+  $(error Unsupported architecture "$(ARCH)")
+endif
+
 target_dir := target/$(target)/$(MODE)
 app_dir := src/bin
 apps := $(wildcard $(app_dir)/*.rs)
@@ -13,15 +22,18 @@ ifeq ($(MODE), release)
   build_args += --release
 endif
 
-OBJDUMP := rust-objdump --arch-name=$(ARCH) --print-imm-hex
+OBJDUMP := rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
 OBJCOPY := rust-objcopy --binary-architecture=$(ARCH)
 
-export RUSTFLAGS=-C target-feature=-neon,-fp
+export RUSTFLAGS=$(rust_flags)
 
 all: build
 
 elf:
 	cargo build $(build_args)
+
+clippy:
+	cargo clippy $(build_args)
 
 $(elfs): elf
 

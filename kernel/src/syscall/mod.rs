@@ -22,6 +22,10 @@ use crate::arch::{instructions, TrapFrame};
 
 pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize {
     instructions::enable_irqs();
+    debug!(
+        "syscall {} enter <= ({:#x}, {:#x}, {:#x})",
+        syscall_id, args[0], args[1], args[2]
+    );
     let ret = match syscall_id {
         SYSCALL_READ => sys_read(args[0], args[1].into(), args[2]),
         SYSCALL_WRITE => sys_write(args[0], args[1].into(), args[2]),
@@ -40,6 +44,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3], tf: &mut TrapFrame) -> isize
             crate::task::CurrentTask::get().exit(-1);
         }
     };
+    debug!("syscall {} ret => {:#x}", syscall_id, ret);
     instructions::disable_irqs();
     ret
 }

@@ -34,7 +34,7 @@ pub unsafe fn set_kernel_page_table_root(root_paddr: usize) {
 pub unsafe fn set_user_page_table_root(root_paddr: usize) {
     // user space page table use TTBR0 (0x0..0xffff_ffff_ffff)
     let old_root = TTBR0_EL1.get();
-    debug!("Set page table root: {:#x} => {:#x}", old_root, root_paddr);
+    trace!("set page table root: {:#x} => {:#x}", old_root, root_paddr);
     if old_root != root_paddr as u64 {
         TTBR0_EL1.set(root_paddr as u64);
         flush_tlb_all();

@@ -166,10 +166,12 @@ void fprintf(int f, const char *restrict fmt, ...)
             out(f, a, l);
             break;
         case 'l':
-            if (s[2] == 'd')
-                printint(va_arg(ap, long), 10, 1);
-            else if (s[2] == 'u')
+            if (s[2] == 'u')
                 printint(va_arg(ap, long), 10, 0);
+            else if (s[2] == 'd')
+                printint(va_arg(ap, long), 10, 1);
+            else if (s[2] == 'x')
+                printint(va_arg(ap, long), 16, 1);
             else {
                 putchar('%');
                 putchar(s[1]);

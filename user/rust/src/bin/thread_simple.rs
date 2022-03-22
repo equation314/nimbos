@@ -11,7 +11,12 @@ static GLOBAL_VAR: AtomicUsize = AtomicUsize::new(0);
 
 fn get_sp() -> usize {
     let sp: usize;
-    unsafe { core::arch::asm!("mov {}, sp", out(reg) sp) };
+    unsafe {
+        #[cfg(target_arch = "x86_64")]
+        core::arch::asm!("mov {}, rsp", out(reg) sp, options(pure, readonly));
+        #[cfg(target_arch = "aarch64")]
+        core::arch::asm!("mov {}, sp", out(reg) sp, options(pure, readonly));
+    }
     sp
 }
 

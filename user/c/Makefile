@@ -1,5 +1,4 @@
-
-ARCH ?= aarch64
+ARCH ?= x86_64
 MODE ?= release
 
 out_dir := ../build/$(ARCH)

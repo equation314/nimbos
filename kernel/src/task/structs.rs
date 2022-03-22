@@ -12,6 +12,7 @@ use crate::sync::{LazyInit, Mutex};
 
 pub(super) static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
 
+#[derive(Debug)]
 enum EntryState {
     Kernel { pc: usize, arg: usize },
     User(Box<TrapFrame>),

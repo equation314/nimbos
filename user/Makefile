@@ -1,4 +1,4 @@
-ARCH ?= aarch64
+ARCH ?= x86_64
 MODE ?= release
 
 BUILD_RUST ?= y

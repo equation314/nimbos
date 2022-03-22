@@ -1,6 +1,5 @@
 target
 !kernelCargo.lock
-kernel/src/link_app.S
 .idea
 .vscode
 .DS_Store

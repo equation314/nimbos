@@ -16,6 +16,22 @@ jobs:
     - name: Check code format
       run: cd kernel && cargo fmt -- --check
 
+  clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly-2022-02-22
+        override: true
+        components: rust-src, clippy
+    - name: Clippy
+      run: make -C kernel clippy ARCH=${{ matrix.arch }}
+
   build:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -29,7 +45,7 @@ jobs:
       with:
         profile: minimal
         toolchain: nightly-2022-02-22
-        components: rust-src, clippy, llvm-tools-preview
+        components: rust-src, llvm-tools-preview
     - name: Setup environment
       run: make -C kernel env ARCH=${{ matrix.arch }}
 
@@ -48,6 +64,3 @@ jobs:
       run: |
         export PATH=$PATH:$PWD/musl/bin
         make -C kernel ARCH=${{ matrix.arch }}
-
-    - name: Clippy
-      run: make -C kernel clippy ARCH=${{ matrix.arch }}

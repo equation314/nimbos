@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::{fmt::Debug, marker::PhantomData};
 
-use crate::mm::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
+use super::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
 
 pub trait GenericPTE: Debug + Clone + Copy + Sync + Send + Sized {
     // Create a page table entry point to a terminate page or block.
@@ -37,6 +37,29 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
             intrm_tables: vec![root_frame],
             _phantom: PhantomData,
         }
+    }
+
+    pub fn clone_from(&self, start: VirtAddr, end: VirtAddr) -> Self {
+        let pt = Self::new();
+        if !cfg!(target_arch = "aarch64") {
+            // ARMv8 doesn't need to copy kernel page table entries to user page table.
+            let dst_table = unsafe {
+                core::slice::from_raw_parts_mut(
+                    pt.root_paddr.into_kvaddr().as_mut_ptr() as *mut PTE,
+                    ENTRY_COUNT,
+                )
+            };
+            let src_table = unsafe {
+                core::slice::from_raw_parts(
+                    self.root_paddr.into_kvaddr().as_ptr() as *const PTE,
+                    ENTRY_COUNT,
+                )
+            };
+            let start_idx = p4_index(start);
+            let end_idx = p4_index(VirtAddr::new(end.as_usize() - 1)) + 1;
+            dst_table[start_idx..end_idx].copy_from_slice(&src_table[start_idx..end_idx]);
+        }
+        pt
     }
 
     pub fn root_paddr(&self) -> PhysAddr {

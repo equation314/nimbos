@@ -37,7 +37,7 @@ pub unsafe fn set_kernel_page_table_root(root_paddr: usize) {
 
 pub unsafe fn set_user_page_table_root(root_paddr: usize) {
     let old_root = cr3();
-    debug!("Set page table root: {:#x} => {:#x}", old_root, root_paddr);
+    trace!("set page table root: {:#x} => {:#x}", old_root, root_paddr);
     if old_root != root_paddr as u64 {
         cr3_write(root_paddr as u64);
     }

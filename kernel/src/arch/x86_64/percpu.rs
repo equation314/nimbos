@@ -17,13 +17,18 @@ impl ArchPerCpu {
 
     pub fn init(&mut self, cpu_id: usize) {
         println!("Loading IDT and GDT for CPU {}...", cpu_id);
+        IDT.load();
         self.gdt.init(&self.tss);
         self.gdt.load();
         self.gdt.load_tss(TSS_SELECTOR);
-        IDT.load();
     }
 
-    pub fn set_kernel_stack(&mut self, kstack_top: VirtAddr) {
-        self.tss.set_kernel_stack(kstack_top.as_usize() as u64)
+    pub fn kernel_stack_top(&self) -> VirtAddr {
+        VirtAddr::new(self.tss.kernel_stack_top() as usize)
+    }
+
+    pub fn set_kernel_stack_top(&mut self, kstack_top: VirtAddr) {
+        trace!("set percpu kernel stack: {:#x?}", kstack_top);
+        self.tss.set_kernel_stack_top(kstack_top.as_usize() as u64)
     }
 }

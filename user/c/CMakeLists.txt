@@ -7,7 +7,9 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "")
 # Toolchain
 set(PREFIX ${ARCH}-linux-musl-)
 
-if (${ARCH} STREQUAL riscv32)
+if (${ARCH} STREQUAL x86_64)
+    set(CMAKE_C_FLAGS       "-mno-sse")
+elseif (${ARCH} STREQUAL riscv32)
     set(CMAKE_C_FLAGS       "-march=rv32imac -mabi=ilp32 -mcmodel=medany")
 elseif (${ARCH} STREQUAL riscv64)
     set(CMAKE_C_FLAGS       "-march=rv64imac -mabi=lp64 -mcmodel=medany")

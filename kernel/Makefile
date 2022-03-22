@@ -63,7 +63,7 @@ $(kernel_bin): kernel
 	@$(OBJCOPY) $(kernel_elf) --strip-all -O binary $@
 
 user:
-#	@cd ../user && make build
+	@cd ../user && make build
 
 kernel: user
 	@echo Arch: $(ARCH), Platform: $(PLATFORM)

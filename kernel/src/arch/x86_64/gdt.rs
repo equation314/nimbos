@@ -26,7 +26,11 @@ impl TssStruct {
         }
     }
 
-    pub fn set_kernel_stack(&mut self, rsp0: u64) {
+    pub fn kernel_stack_top(&self) -> u64 {
+        self.inner.privilege_stack_table[0].as_u64()
+    }
+
+    pub fn set_kernel_stack_top(&mut self, rsp0: u64) {
         self.inner.privilege_stack_table[0] = VirtAddr::new(rsp0);
     }
 }
@@ -44,6 +48,7 @@ impl GdtStruct {
     }
 
     pub fn init(&mut self, tss: &TssStruct) {
+        // first 3 entries are the same as in multiboot.rs
         self.table[1] = DescriptorFlags::KERNEL_CODE32.bits(); // 0x00cf9b000000ffff
         self.table[2] = DescriptorFlags::KERNEL_CODE64.bits(); // 0x00af9b000000ffff
         self.table[3] = DescriptorFlags::KERNEL_DATA.bits(); // 0x00cf93000000ffff

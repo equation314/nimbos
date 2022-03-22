@@ -1,31 +1,19 @@
-use core::arch::asm;
 use super::TimeSpec;
+use crate::arch::syscall;
 
-const SYSCALL_READ: usize = 0;
-const SYSCALL_WRITE: usize = 1;
-const SYSCALL_YIELD: usize = 24;
-const SYSCALL_NANOSLEEP: usize = 35;
-const SYSCALL_GETPID: usize = 39;
-const SYSCALL_CLONE: usize = 56;
-const SYSCALL_FORK: usize = 57;
-const SYSCALL_EXEC: usize = 59;
-const SYSCALL_EXIT: usize = 60;
-const SYSCALL_WAITPID: usize = 61;
-const SYSCALL_GET_TIME: usize = 96;
+pub use crate::arch::sys_clone;
 
-fn syscall(id: usize, args: [usize; 3]) -> isize {
-    let ret;
-    unsafe {
-        asm!(
-            "svc #0",
-            inlateout("x0") args[0] => ret,
-            in("x1") args[1],
-            in("x2") args[2],
-            in("x8") id,
-        );
-    }
-    ret
-}
+pub const SYSCALL_READ: usize = 0;
+pub const SYSCALL_WRITE: usize = 1;
+pub const SYSCALL_YIELD: usize = 24;
+pub const SYSCALL_NANOSLEEP: usize = 35;
+pub const SYSCALL_GETPID: usize = 39;
+pub const SYSCALL_CLONE: usize = 56;
+pub const SYSCALL_FORK: usize = 57;
+pub const SYSCALL_EXEC: usize = 59;
+pub const SYSCALL_EXIT: usize = 60;
+pub const SYSCALL_WAITPID: usize = 61;
+pub const SYSCALL_GET_TIME: usize = 96;
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
     syscall(
@@ -55,39 +43,6 @@ pub fn sys_getpid() -> isize {
     syscall(SYSCALL_GETPID, [0, 0, 0])
 }
 
-pub fn sys_clone(entry: fn(usize) -> i32, arg: usize, newsp: usize) -> usize {
-    let ret;
-    unsafe {
-        asm!("
-            // align stack and save entry,arg to the new stack
-	        and x2, x2, #-16
-            stp x0, x1, [x2, #-16]!
-
-            // syscall(SYSCALL_CLONE, newsp)
-            mov x0, x2
-            mov x8, {sys_clone}
-            svc #0
-
-            cbz x0, 1f
-            // parent
-            ret
-        1:
-            // child
-            ldp x1, x0, [sp], #16
-            blr x1
-            // syscall(SYSCALL_EXIT, ret)
-            mov x8, {sys_exit}
-            svc #0",
-            sys_clone = const SYSCALL_CLONE,
-            sys_exit = const SYSCALL_EXIT,
-            inlateout("x0") entry => ret,
-            in("x1") arg,
-            in("x2") newsp,
-        );
-    }
-    ret
-}
-
 pub fn sys_fork() -> isize {
     syscall(SYSCALL_FORK, [0, 0, 0])
 }
@@ -101,5 +56,5 @@ pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
 }
 
 pub fn sys_nanosleep(req: &TimeSpec) -> isize {
-    syscall(SYSCALL_NANOSLEEP, [req as * const _ as usize, 0, 0])
+    syscall(SYSCALL_NANOSLEEP, [req as *const _ as usize, 0, 0])
 }

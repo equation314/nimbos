@@ -1,6 +1,9 @@
 use core::arch::asm;
 
+use super::gdt::{UCODE64_SELECTOR, UDATA_SELECTOR};
+use crate::arch::instructions;
 use crate::mm::{PhysAddr, VirtAddr};
+use crate::percpu::PerCpu;
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
@@ -40,10 +43,11 @@ impl TrapFrame {
         Self {
             rdi: arg0 as _,
             rip: entry.as_usize() as _,
-            cs: 0x20 | 3,
-            rflags: 0x202, // IOPL = 0, IF = 1
+            cs: UCODE64_SELECTOR.bits() as _,
+            // rflags: RFlags::INTERRUPT_FLAG.bits(), // IOPL = 0, IF = 1
+            rflags: 0,
             user_rsp: ustack_top.as_usize() as _,
-            user_ss: 0x28 | 3,
+            user_ss: UDATA_SELECTOR.bits() as _,
             ..Default::default()
         }
     }
@@ -61,8 +65,44 @@ impl TrapFrame {
         tf
     }
 
-    pub unsafe fn exec(&self, _kstack_top: VirtAddr) -> ! {
-        unimplemented!()
+    pub fn is_user(&self) -> bool {
+        self.cs & 0b11 == 3
+    }
+
+    pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
+        info!(
+            "user app start: entry={:#x}, ustack={:#x}, kstack={:#x}",
+            self.rip,
+            self.user_rsp,
+            kstack_top.as_usize(),
+        );
+        instructions::disable_irqs();
+        assert_eq!(
+            PerCpu::current().arch_data().as_ref().kernel_stack_top(),
+            kstack_top
+        );
+        asm!("
+            mov     rsp, {tf}
+            pop     rax
+            pop     rcx
+            pop     rdx
+            pop     rbx
+            pop     rbp
+            pop     rsi
+            pop     rdi
+            pop     r8
+            pop     r9
+            pop     r10
+            pop     r11
+            pop     r12
+            pop     r13
+            pop     r14
+            pop     r15
+            add     rsp, 16     // pop vector, error_code
+            iretq",
+            tf = in(reg) self,
+            options(noreturn),
+        )
     }
 }
 
@@ -78,9 +118,9 @@ struct ContextSwitchFrame {
     rip: u64,
 }
 
-#[repr(C)]
 #[derive(Debug)]
 pub struct TaskContext {
+    pub kstack_top: VirtAddr,
     pub rsp: u64,
     pub fs_base: u64,
     pub cr3: u64,
@@ -109,12 +149,17 @@ impl TaskContext {
             );
             self.rsp = frame_ptr as u64;
         }
+        self.kstack_top = kstack_top;
         self.cr3 = page_table_root.as_usize() as u64;
     }
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            crate::arch::instructions::set_user_page_table_root(next_ctx.cr3 as usize);
+            PerCpu::current()
+                .arch_data()
+                .as_mut()
+                .set_kernel_stack_top(next_ctx.kstack_top);
+            instructions::set_user_page_table_root(next_ctx.cr3 as usize);
             // TODO: swtich fs_base
             context_switch(&mut self.rsp, &next_ctx.rsp)
         }

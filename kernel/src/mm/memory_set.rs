@@ -6,7 +6,7 @@ use super::{MemFlags, PhysFrame, PAGE_SIZE};
 use crate::arch::{instructions, PageTable};
 use crate::config::{USER_STACK_BASE, USER_STACK_SIZE};
 use crate::mm::{PhysAddr, VirtAddr};
-use crate::platform::mem::{MMIO_REGIONS, PHYS_MEMORY_END};
+use crate::platform::mem::{KERNEL_ASPACE_BASE, KERNEL_ASPACE_SIZE, MMIO_REGIONS, PHYS_MEMORY_END};
 use crate::sync::LazyInit;
 
 extern "C" {
@@ -137,9 +137,19 @@ impl MapArea {
 }
 
 impl MemorySet {
-    pub fn new() -> Self {
+    fn new_kernel() -> Self {
         Self {
             pt: PageTable::new(),
+            areas: BTreeMap::new(),
+        }
+    }
+
+    pub fn new() -> Self {
+        Self {
+            pt: KERNEL_ASPACE.pt.clone_from(
+                VirtAddr::new(KERNEL_ASPACE_BASE),
+                VirtAddr::new(KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE),
+            ),
             areas: BTreeMap::new(),
         }
     }
@@ -164,18 +174,20 @@ impl MemorySet {
 
         let elf = ElfFile::new(elf_data).expect("invalid ELF file");
         assert_eq!(
-            elf.header.pt1.class(),
-            header::Class::SixtyFour,
-            "64-bit ELF required"
-        );
-        assert_eq!(
             elf.header.pt2.type_().as_type(),
             header::Type::Executable,
             "ELF is not an executable object"
         );
+        let expect_arch = if cfg!(target_arch = "x86_64") {
+            header::Machine::X86_64
+        } else if cfg!(target_arch = "aarch64") {
+            header::Machine::AArch64
+        } else {
+            panic!("Unsupported architecture!");
+        };
         assert_eq!(
             elf.header.pt2.machine().as_machine(),
-            header::Machine::AArch64,
+            expect_arch,
             "invalid ELF arch"
         );
 
@@ -260,7 +272,7 @@ pub fn kernel_aspace<'a>() -> &'a MemorySet {
 }
 
 pub fn init_kernel_aspace() {
-    let mut ms = MemorySet::new();
+    let mut ms = MemorySet::new_kernel();
     let mut map_range = |start: usize, end: usize, flags: MemFlags, name: &str| {
         println!("Mapping {}: [{:#x}, {:#x})", name, start, end);
         assert!(start < end);

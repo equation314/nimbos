@@ -1,10 +1,13 @@
 #![no_std]
 #![feature(linkage)]
 #![feature(asm_const)]
+#![feature(naked_functions)]
 #![feature(panic_info_message)]
 
 #[macro_use]
 pub mod console;
+
+mod arch;
 mod lang_items;
 mod syscall;
 
@@ -89,7 +92,7 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
 pub fn sleep(period_ms: usize) {
     sys_nanosleep(&TimeSpec {
         sec: period_ms / 1000,
-        nsec: (period_ms % 1000) * 1000_000,
+        nsec: (period_ms % 1000) * 1_000_000,
     });
 }
 

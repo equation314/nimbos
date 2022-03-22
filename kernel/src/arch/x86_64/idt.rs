@@ -31,7 +31,11 @@ impl IdtStruct {
             core::slice::from_raw_parts_mut(self.table as *mut _ as *mut Entry<HandlerFunc>, 256)
         };
         for i in 0..NUM_INT {
-            entries[i].set_handler_fn(unsafe { core::mem::transmute(ENTRIES[i]) });
+            let opt = entries[i].set_handler_fn(unsafe { core::mem::transmute(ENTRIES[i]) });
+            if i == 0x80 {
+                // `int 0x80` syscall
+                opt.set_privilege_level(x86_64::PrivilegeLevel::Ring3);
+            }
         }
     }
 
