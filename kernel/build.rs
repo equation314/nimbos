@@ -11,6 +11,7 @@ fn main() {
 fn insert_app_data() -> Result<()> {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let app_path = PathBuf::from("../user/build/").join(&arch);
+    let link_app_path = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("link_app.S");
 
     if let Ok(dir) = read_dir(&app_path) {
         let mut apps = dir
@@ -19,9 +20,7 @@ fn insert_app_data() -> Result<()> {
             .collect::<Vec<_>>();
         apps.sort();
 
-        let mut f =
-            File::create(PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("link_app.S"))?;
-
+        let mut f = File::create(link_app_path)?;
         writeln!(
             f,
             "
@@ -55,7 +54,7 @@ app_{0}_end:",
             )?;
         }
     } else {
-        let mut f = File::create("src/link_app.S")?;
+        let mut f = File::create(link_app_path)?;
         writeln!(
             f,
             "

@@ -27,6 +27,10 @@ _trap_handlers:
 .endr
 
 .Ltrap_common:
+    test    byte ptr [rsp + 3 * 8], 3   // swap GS if it comes from user space
+    jz      1f
+    swapgs
+1:
     push    r15
     push    r14
     push    r13
@@ -61,7 +65,12 @@ _trap_handlers:
     pop     r13
     pop     r14
     pop     r15
-    add     rsp, 16     // pop vector, error_code
+
+    test    byte ptr [rsp + 3 * 8], 3   // swap GS back if return to user space
+    jz      2f
+    swapgs
+2:
+    add     rsp, 16                     // pop vector, error_code
     iretq
 
 .section .rodata

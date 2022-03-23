@@ -33,7 +33,7 @@ impl IdtStruct {
         for i in 0..NUM_INT {
             let opt = entries[i].set_handler_fn(unsafe { core::mem::transmute(ENTRIES[i]) });
             if i == 0x80 {
-                // `int 0x80` syscall
+                // syscall via `int 0x80`
                 opt.set_privilege_level(x86_64::PrivilegeLevel::Ring3);
             }
         }
@@ -46,7 +46,7 @@ impl IdtStruct {
         }
     }
 
-    pub fn load(&self) {
+    pub fn load(&'static self) {
         unsafe {
             asm!("lidt [{}]", in(reg) &self.pointer(), options(readonly, nostack, preserves_flags))
         }

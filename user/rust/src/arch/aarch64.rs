@@ -19,10 +19,14 @@ pub fn syscall(id: usize, args: [usize; 3]) -> isize {
 #[naked]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize) -> usize {
+    // sys_clone(entry, arg, newsp)
+    //             x0,   x1,    x2
+    // syscall(SYSCALL_CLONE, newsp)
+    //                   x8,     x0
     unsafe {
         asm!("
             // align stack and save entry,arg to the new stack
-	        and x2, x2, #-16
+            and x2, x2, #-16
             stp x0, x1, [x2, #-16]!
 
             // syscall(SYSCALL_CLONE, newsp)

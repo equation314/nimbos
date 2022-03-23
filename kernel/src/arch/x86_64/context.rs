@@ -43,17 +43,20 @@ impl TrapFrame {
         Self {
             rdi: arg0 as _,
             rip: entry.as_usize() as _,
-            cs: UCODE64_SELECTOR.bits() as _,
+            cs: UCODE64_SELECTOR.0 as _,
             // rflags: RFlags::INTERRUPT_FLAG.bits(), // IOPL = 0, IF = 1
             rflags: 0,
             user_rsp: ustack_top.as_usize() as _,
-            user_ss: UDATA_SELECTOR.bits() as _,
+            user_ss: UDATA_SELECTOR.0 as _,
             ..Default::default()
         }
     }
 
     pub const fn new_clone(&self, ustack_top: VirtAddr) -> Self {
         let mut tf = *self;
+        // cs, user_ss are not pushed into TrapFrame in syscall_entry
+        tf.cs = UCODE64_SELECTOR.0 as _;
+        tf.user_ss = UDATA_SELECTOR.0 as _;
         tf.user_rsp = ustack_top.as_usize() as _;
         tf.rax = 0; // for child thread, clone returns 0
         tf
@@ -61,6 +64,9 @@ impl TrapFrame {
 
     pub const fn new_fork(&self) -> Self {
         let mut tf = *self;
+        // cs, user_ss are not pushed into TrapFrame in syscall_entry
+        tf.cs = UCODE64_SELECTOR.0 as _;
+        tf.user_ss = UDATA_SELECTOR.0 as _;
         tf.rax = 0; // for child process, fork returns 0
         tf
     }
@@ -71,7 +77,7 @@ impl TrapFrame {
 
     pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
         info!(
-            "user app start: entry={:#x}, ustack={:#x}, kstack={:#x}",
+            "user task start: entry={:#x}, ustack={:#x}, kstack={:#x}",
             self.rip,
             self.user_rsp,
             kstack_top.as_usize(),
@@ -99,6 +105,7 @@ impl TrapFrame {
             pop     r14
             pop     r15
             add     rsp, 16     // pop vector, error_code
+            swapgs
             iretq",
             tf = in(reg) self,
             options(noreturn),

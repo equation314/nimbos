@@ -50,7 +50,7 @@ impl TrapFrame {
 
     pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
         info!(
-            "user app start: entry={:#x}, ustack={:#x}, kstack={:#x}",
+            "user task start: entry={:#x}, ustack={:#x}, kstack={:#x}",
             self.elr,
             self.usp,
             kstack_top.as_usize(),

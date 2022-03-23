@@ -33,7 +33,7 @@ pub fn main() -> i32 {
                 value
             );
         }
-        0
+        -getpid() as _
     };
 
     let t0 = thread_spawn(test_user_thread, 0xdead);

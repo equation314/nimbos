@@ -6,11 +6,13 @@ pub fn syscall(id: usize, args: [usize; 3]) -> isize {
     let ret;
     unsafe {
         asm!(
-            "int 0x80",
+            "syscall",
             inlateout("rax") id => ret,
             in("rdi") args[0],
             in("rsi") args[1],
             in("rdx") args[2],
+            out("rcx") _,
+            out("r11") _,
         );
     }
     ret
@@ -19,9 +21,13 @@ pub fn syscall(id: usize, args: [usize; 3]) -> isize {
 #[naked]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize) -> usize {
+    // sys_clone(entry, arg, newsp)
+    //             rdi, rsi,   rdx
+    // syscall(SYSCALL_CLONE, newsp)
+    //                   rax,   rdi
     unsafe {
         asm!("
-            // push arg (rsi) to stack, set func (rdi) to %r9
+            // push arg (rsi) to stack, set func (rdi) to r9
             and rdx, -16
             sub rdx, 8
             mov [rdx], rsi
@@ -30,7 +36,7 @@ pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize
             // syscall(SYSCALL_CLONE, newsp)
             mov rdi, rdx
             mov rax, {sys_clone}
-            int 0x80
+            syscall
 
             test rax, rax
             jz  1f
@@ -44,7 +50,7 @@ pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize
             // syscall(SYSCALL_EXIT, ret)
             mov rdi, rax
             mov rax, {sys_exit}
-            int 0x80",
+            syscall",
             sys_clone = const SYSCALL_CLONE,
             sys_exit = const SYSCALL_EXIT,
             options(noreturn),

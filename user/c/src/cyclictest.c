@@ -92,11 +92,11 @@ static void *timerthread(void* param)
     int err;
     struct thread_param* par = param;
     struct thread_stat* stat = &thrstat[par->id];
-	struct timespec now, saved, interval;
+    struct timespec now, saved, interval;
 
     stat->tid = getpid();
-	interval.tv_sec = par->interval / USEC_PER_SEC;
-	interval.tv_nsec = (par->interval % USEC_PER_SEC) * 1000;
+    interval.tv_sec = par->interval / USEC_PER_SEC;
+    interval.tv_nsec = (par->interval % USEC_PER_SEC) * 1000;
 
     while (!shutdown) {
         err = clock_gettime(DEFAULT_CLOCK, &saved);
@@ -143,7 +143,7 @@ int main()
     // int latency_target_value = 0;
     // int fd = open("/dev/cpu_dma_latency", 02);
     // assert(fd > 0);
-	// err = write(fd, &latency_target_value, 4);
+    // err = write(fd, &latency_target_value, 4);
     // assert(err == 4);
 
     for (int i = 0; i < NUM_THREADS; i++) {

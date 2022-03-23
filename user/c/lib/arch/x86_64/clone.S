@@ -16,7 +16,7 @@ __clone:
     // syscall(SYSCALL_CLONE, newsp)
     mov %rdx, %rdi
     mov $56, %rax
-    int $0x80
+    syscall
 
     test %rax, %rax
     jz  1f
@@ -30,4 +30,4 @@ __clone:
     // syscall(SYSCALL_EXIT, ret)
     mov %rax, %rdi
     mov $60, %rax
-    int $0x80
+    syscall

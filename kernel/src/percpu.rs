@@ -8,6 +8,7 @@ use crate::task::{CurrentTask, Task};
 
 static CPUS: [LazyInit<PerCpu>; MAX_CPUS] = [LazyInit::new(); MAX_CPUS];
 
+#[repr(transparent)]
 pub struct PerCpuData<T> {
     data: UnsafeCell<T>,
 }
@@ -88,10 +89,13 @@ impl PerCpu {
     }
 }
 
+pub const PERCPU_ARCH_OFFSET: usize = memoffset::offset_of!(PerCpu, arch);
+
 pub fn init_percpu() {
     let cpu_id = 0;
-    let mut percpu = PerCpu::new(cpu_id);
-    percpu.arch.get_mut().init(cpu_id);
-    CPUS[cpu_id].init_by(percpu);
-    unsafe { instructions::set_thread_pointer(CPUS[cpu_id].self_vaddr) };
+    CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
+    unsafe {
+        instructions::set_thread_pointer(CPUS[cpu_id].self_vaddr);
+        PerCpu::current().arch.as_mut().init(cpu_id);
+    }
 }

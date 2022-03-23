@@ -19,6 +19,7 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         arch: [x86_64, aarch64]
     steps:

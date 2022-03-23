@@ -255,6 +255,7 @@ impl<'a> CurrentTask<'a> {
     }
 
     pub fn exit(&self, exit_code: i32) -> ! {
+        info!("task exit with code {}", exit_code);
         if let Some(vm) = self.vm.as_ref() {
             if Arc::strong_count(vm) == 1 {
                 vm.lock().clear(); // drop memory set before lock

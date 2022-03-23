@@ -61,7 +61,7 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
             CurrentTask::get().exit(-1);
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
-            tf.r[0] = syscall(tf.r[8] as _, [tf.r[0] as _, tf.r[1] as _, tf.r[2] as _], tf) as u64
+            tf.r[0] = syscall(tf, tf.r[8] as _, tf.r[0] as _, tf.r[1] as _, tf.r[2] as _) as u64
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortLowerEL) => {

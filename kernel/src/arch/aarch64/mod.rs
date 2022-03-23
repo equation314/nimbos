@@ -11,5 +11,4 @@ pub use self::percpu::ArchPerCpu;
 
 pub fn init() {
     trap::init();
-    unsafe { instructions::set_thread_pointer(0) };
 }

@@ -1,34 +1,48 @@
-use super::gdt::{GdtStruct, TssStruct, TSS_SELECTOR};
+use memoffset::offset_of;
+use x86_64::structures::tss::TaskStateSegment;
+
+use super::gdt::{GdtStruct, TSS_SELECTOR};
 use super::idt::IDT;
 use crate::mm::VirtAddr;
+use crate::percpu::PERCPU_ARCH_OFFSET;
+
+pub(super) const PERCPU_USER_RSP_OFFSET: usize =
+    PERCPU_ARCH_OFFSET + offset_of!(ArchPerCpu, saved_user_rsp);
+
+pub(super) const PERCPU_KERNEL_RSP_OFFSET: usize = PERCPU_ARCH_OFFSET
+    + offset_of!(ArchPerCpu, tss)
+    + offset_of!(TaskStateSegment, privilege_stack_table);
 
 pub struct ArchPerCpu {
-    tss: TssStruct,
+    saved_user_rsp: u64,
+    tss: TaskStateSegment,
     gdt: GdtStruct,
 }
 
 impl ArchPerCpu {
     pub fn new() -> Self {
         Self {
-            tss: TssStruct::alloc(),
+            saved_user_rsp: 0,
+            tss: TaskStateSegment::new(),
             gdt: GdtStruct::alloc(),
         }
     }
 
-    pub fn init(&mut self, cpu_id: usize) {
+    pub fn init(&'static mut self, cpu_id: usize) {
         println!("Loading IDT and GDT for CPU {}...", cpu_id);
         IDT.load();
         self.gdt.init(&self.tss);
         self.gdt.load();
         self.gdt.load_tss(TSS_SELECTOR);
+        super::syscall::init();
     }
 
     pub fn kernel_stack_top(&self) -> VirtAddr {
-        VirtAddr::new(self.tss.kernel_stack_top() as usize)
+        VirtAddr::new(self.tss.privilege_stack_table[0].as_u64() as usize)
     }
 
     pub fn set_kernel_stack_top(&mut self, kstack_top: VirtAddr) {
         trace!("set percpu kernel stack: {:#x?}", kstack_top);
-        self.tss.set_kernel_stack_top(kstack_top.as_usize() as u64)
+        self.tss.privilege_stack_table[0] = x86_64::VirtAddr::new(kstack_top.as_usize() as u64);
     }
 }

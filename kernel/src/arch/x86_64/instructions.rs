@@ -1,8 +1,8 @@
 use core::arch::asm;
 
 use x86::controlregs::{cr3, cr3_write};
-use x86::msr::{wrmsr, IA32_GS_BASE};
-use x86_64::registers::rflags::{self, RFlags};
+use x86_64::registers::{model_specific::GsBase, rflags, rflags::RFlags};
+use x86_64::VirtAddr;
 
 #[inline]
 pub fn enable_irqs() {
@@ -19,6 +19,7 @@ pub fn irqs_disabled() -> bool {
     !rflags::read().contains(RFlags::INTERRUPT_FLAG)
 }
 
+#[inline]
 pub fn thread_pointer() -> usize {
     // read PerCpu::self_vaddr
     let ret;
@@ -26,8 +27,9 @@ pub fn thread_pointer() -> usize {
     ret
 }
 
+#[inline]
 pub unsafe fn set_thread_pointer(tp: usize) {
-    wrmsr(IA32_GS_BASE, tp as _)
+    GsBase::write(VirtAddr::new(tp as u64));
 }
 
 pub unsafe fn set_kernel_page_table_root(root_paddr: usize) {
