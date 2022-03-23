@@ -111,6 +111,8 @@ static void *timerthread(void* param)
         tsinc(&saved, &interval);
         long diff = tsdelta(&now, &saved);
 
+        // printf("%ld\n", diff);
+
         if (diff < stat->min)
             stat->min = diff;
         if (diff > stat->max)
@@ -172,13 +174,16 @@ int main()
             if (thrstat[i].cycles >= MAX_CYCLES)
                 allstopped++;
         }
+        printf("\033[%dA\033[2K", NUM_THREADS);
 
-        usleep(10000);
+        usleep(100000);
         if (shutdown || allstopped)
             break;
-        printf("\033[%dA\033[2K", NUM_THREADS);
     }
     shutdown = 1;
+    for (int i = 0; i < NUM_THREADS; i++) {
+        print_stat(&thrpar[i], &thrstat[i]);
+    }
 
     // for (int i = 0; i < NUM_THREADS; i++) {
     //  pthread_join(thrpar[i].thread, NULL);

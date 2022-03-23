@@ -34,7 +34,7 @@ impl ArchPerCpu {
         self.gdt.init(&self.tss);
         self.gdt.load();
         self.gdt.load_tss(TSS_SELECTOR);
-        super::syscall::init();
+        super::syscall::init_percpu();
     }
 
     pub fn kernel_stack_top(&self) -> VirtAddr {

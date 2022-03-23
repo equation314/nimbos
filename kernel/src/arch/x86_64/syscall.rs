@@ -20,7 +20,7 @@ fn x86_syscall_handler(tf: &mut TrapFrame) {
     tf.rax = syscall(tf, tf.rax as _, tf.rdi as _, tf.rsi as _, tf.rdx as _) as u64;
 }
 
-pub fn init() {
+pub fn init_percpu() {
     extern "C" {
         fn syscall_entry();
     }

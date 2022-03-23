@@ -6,6 +6,7 @@ use crate::sync::Mutex;
 
 const UART_CLOCK_FACTOR: usize = 16;
 const OSC_FREQ: usize = 1_843_200;
+const COM1_IRQ_NUM: usize = 0x20 + 4;
 
 static COM1: Mutex<Uart16550> = Mutex::new(Uart16550::new(0x3f8));
 

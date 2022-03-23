@@ -4,7 +4,7 @@ use cortex_a::registers::{ESR_EL1, FAR_EL1, VBAR_EL1};
 use tock_registers::interfaces::{Readable, Writeable};
 
 use super::TrapFrame;
-use crate::drivers::interrupt::IrqHandlerResult;
+use crate::drivers::interrupt::{handle_irq, IrqHandlerResult};
 use crate::{syscall::syscall, task::CurrentTask};
 
 global_asm!(include_str!("trap.S"));
@@ -98,7 +98,7 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
 
 #[no_mangle]
 fn handle_irq_exception(_tf: &mut TrapFrame) {
-    if crate::drivers::interrupt::handle_irq() == IrqHandlerResult::Reschedule {
+    if handle_irq(0) == IrqHandlerResult::Reschedule {
         CurrentTask::get().yield_now();
     }
 }

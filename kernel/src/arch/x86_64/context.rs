@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use x86_64::registers::rflags::RFlags;
+
 use super::gdt::{UCODE64_SELECTOR, UDATA_SELECTOR};
 use crate::arch::instructions;
 use crate::mm::{PhysAddr, VirtAddr};
@@ -44,8 +46,7 @@ impl TrapFrame {
             rdi: arg0 as _,
             rip: entry.as_usize() as _,
             cs: UCODE64_SELECTOR.0 as _,
-            // rflags: RFlags::INTERRUPT_FLAG.bits(), // IOPL = 0, IF = 1
-            rflags: 0,
+            rflags: RFlags::INTERRUPT_FLAG.bits(), // IOPL = 0, IF = 1
             user_rsp: ustack_top.as_usize() as _,
             user_ss: UDATA_SELECTOR.0 as _,
             ..Default::default()

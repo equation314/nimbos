@@ -2,6 +2,7 @@ cfg_if! {
     if #[cfg(feature = "platform-pc")] {
         mod apic;
         use apic as imp;
+        pub use apic::init_local_apic_ap;
     } else if #[cfg(feature = "platform-qemu-virt-arm")] {
         mod gicv2;
         use gicv2 as imp;
@@ -40,6 +41,7 @@ impl<const IRQ_COUNT: usize> IrqHandlerTable<IRQ_COUNT> {
     }
 
     pub fn handle(&self, vector: usize) -> IrqHandlerResult {
+        trace!("IRQ {}", vector);
         if let Some(handler) = unsafe { &*self.handlers[vector].get() } {
             handler()
         } else {
@@ -50,10 +52,6 @@ impl<const IRQ_COUNT: usize> IrqHandlerTable<IRQ_COUNT> {
 
 static HANDLERS: IrqHandlerTable<IRQ_COUNT> = IrqHandlerTable::new();
 
-pub(super) fn register_handler(vector: usize, handler: IrqHandler) {
+pub fn register_handler(vector: usize, handler: IrqHandler) {
     HANDLERS.register_handler(vector, handler)
-}
-
-pub(super) fn handle(vector: usize) -> IrqHandlerResult {
-    HANDLERS.handle(vector)
 }

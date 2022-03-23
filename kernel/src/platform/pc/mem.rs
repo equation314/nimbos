@@ -2,7 +2,10 @@ pub const PHYS_MEMORY_START: usize = 0;
 pub const PHYS_MEMORY_SIZE: usize = 0x800_0000; // 128M
 pub const PHYS_MEMORY_END: usize = PHYS_MEMORY_START + PHYS_MEMORY_SIZE;
 
-pub const MMIO_REGIONS: &[(usize, usize)] = &[];
+pub const MMIO_REGIONS: &[(usize, usize)] = &[
+    (0xFEC0_0000, 0x1000), // IO APIC
+    (0xFEE0_0000, 0x1000), // Local APIC
+];
 
 pub const USER_ASPACE_BASE: usize = 0;
 pub const USER_ASPACE_SIZE: usize = 0x7fff_ffff_f000;

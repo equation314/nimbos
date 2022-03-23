@@ -38,13 +38,22 @@ impl<T> LazyInit<T> {
         }
     }
 
+    fn check_init(&self) {
+        if !self.is_init() {
+            panic!(
+                "Use uninitialized value: {:?}",
+                core::any::type_name::<Self>()
+            )
+        }
+    }
+
     fn get(&self) -> &T {
-        assert!(self.is_init());
+        self.check_init();
         unsafe { &*(*self.data.get()).as_ptr() }
     }
 
     fn get_mut(&mut self) -> &mut T {
-        assert!(self.is_init());
+        self.check_init();
         unsafe { &mut *(*self.data.get()).as_mut_ptr() }
     }
 }

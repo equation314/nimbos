@@ -199,9 +199,9 @@ pub fn set_enable(vector: usize, enable: bool) {
     GIC.set_enable(vector, enable);
 }
 
-pub fn handle_irq() -> IrqHandlerResult {
+pub fn handle_irq(_vector: usize) -> IrqHandlerResult {
     if let Some(vector) = GIC.pending_irq() {
-        let res = super::handle(vector);
+        let res = super::HANDLERS.handle(vector);
         GIC.eoi(vector);
         res
     } else {

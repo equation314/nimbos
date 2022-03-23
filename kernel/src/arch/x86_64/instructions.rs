@@ -6,7 +6,7 @@ use x86_64::VirtAddr;
 
 #[inline]
 pub fn enable_irqs() {
-    // unsafe { asm!("sti") }; FIXME
+    unsafe { asm!("sti") };
 }
 
 #[inline]
