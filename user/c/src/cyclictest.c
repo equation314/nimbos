@@ -24,16 +24,17 @@ musl-gcc cyclictest.c -lpthread -DUSE_MUSL
 /*
  * number of timerthreads
  */
-#define NUM_THREADS      1
-#define MAX_CPUS         12
-#define DEFAULT_INTERVAL 1000 // in usecs
-#define DEFAULT_DISTANCE 500
+#define NUM_THREADS         1
+#define MAX_CPUS            12
+#define DEFAULT_INTERVAL    1000 // in usecs
+#define DEFAULT_DISTANCE    500
 // #define DEFAULT_PRIORITY 0
 // #define DEFAULT_POLICY SCHED_OTHER // SCHED_FIFO
-#define USEC_PER_SEC  1000000
-#define NSEC_PER_SEC  1000000000
-#define DEFAULT_CLOCK CLOCK_MONOTONIC
-#define MAX_CYCLES    5000
+#define USEC_PER_SEC        1000000
+#define NSEC_PER_SEC        1000000000
+#define DEFAULT_CLOCK       CLOCK_MONOTONIC
+#define MAX_CYCLES          50000
+#define PRINT_FREQ          500 // 500ms
 
 struct thread_param {
     int id;
@@ -176,7 +177,7 @@ int main()
         }
         printf("\033[%dA\033[2K", NUM_THREADS);
 
-        usleep(100000);
+        usleep(PRINT_FREQ * 1000);
         if (shutdown || allstopped)
             break;
     }

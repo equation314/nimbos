@@ -2,6 +2,7 @@
 ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
+RVM ?= on
 
 # Platform
 ifeq ($(ARCH), x86_64)
@@ -21,6 +22,10 @@ kernel_bin := $(kernel_elf).bin
 
 # Cargo features and build args
 features := platform-$(PLATFORM)
+
+ifeq ($(RVM), on)
+  features += rvm
+endif
 
 build_args := --no-default-features --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
 ifeq ($(MODE), release)
@@ -89,4 +94,7 @@ debug: build
 	sleep 1
 	$(GDB) $(kernel_elf) -ex 'target remote localhost:1234'
 
-.PHONY: build env kernel user clean disasm run debug
+scp:
+	scp -P 2333 $(kernel_bin) ubuntu@localhost:/home/ubuntu
+
+.PHONY: build env kernel user clean disasm run debug scp

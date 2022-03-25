@@ -37,8 +37,8 @@ entry32:
     mov     cr4, eax
 
     // load the temporary page table
-    lea     ebx, [.Ltmp_pml4 - {offset}]
-    mov     cr3, ebx
+    lea     eax, [.Ltmp_pml4 - {offset}]
+    mov     cr3, eax
 
     // set LME, NXE bit in IA32_EFER
     mov     ecx, {efer_msr}
@@ -97,19 +97,21 @@ entry64:
 
 .balign 4096
 .Ltmp_pml4:
+    // 0x0000_0000 ~ 0x8000_0000
     .quad .Ltmp_pdpt_low - {offset} + 0x3   // PRESENT | WRITABLE | paddr(tmp_pdpt)
     .zero 8 * 510
+    // 0xffff_ff80_0000_0000 ~ 0xffff_ff80_8000_0000
     .quad .Ltmp_pdpt_high - {offset} + 0x3  // PRESENT | WRITABLE | paddr(tmp_pdpt)
 
 .Ltmp_pdpt_low:
-    // 0x0000_0000 ~ 0x4000_0000
-    .quad 0x0000 | 0x83                     // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
-    .zero 8 * 511
+    .quad 0x0000 | 0x83                 // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
+    .quad 0x40000000 | 0x83             // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
+    .zero 8 * 510
 
 .Ltmp_pdpt_high:
-    // 0xffff_ff80_0000_0000 ~ 0xffff_ff80_4000_0000
-    .quad 0x0000 | 0x83                     // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
-    .zero 8 * 511
+    .quad 0x0000 | 0x83                 // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
+    .quad 0x40000000 | 0x83             // PRESENT | WRITABLE | HUGE_PAGE | paddr(0x0)
+    .zero 8 * 510
 
 .section .bss.stack
 .balign 4096
