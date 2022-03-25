@@ -79,7 +79,7 @@ impl<S: Scheduler> TaskManager<S> {
         unreachable!("task exited!");
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub fn dump_all_tasks(&self) {
         if ROOT_TASK.children.lock().len() == 0 {
             return;

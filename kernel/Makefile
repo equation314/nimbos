@@ -2,18 +2,25 @@
 ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
-RVM ?= on
+RVM ?= off
 
 # Platform
 ifeq ($(ARCH), x86_64)
-  PLATFORM ?= pc
+  ifeq ($(RVM), on)
+    PLATFORM ?= pc-rvm
+  else
+    PLATFORM ?= pc
+  endif
 else ifeq ($(ARCH), aarch64)
   PLATFORM ?= qemu-virt-arm
 endif
 
-export LOG
 export ARCH
 export PLATFORM
+export MODE
+export LOG
+
+make_args := ARCH=$(ARCH) PLATFORM=$(PLATFORM) MODE=$(MODE) LOG=$(LOG)
 
 # Paths
 target := ../targets/$(ARCH).json
@@ -22,10 +29,6 @@ kernel_bin := $(kernel_elf).bin
 
 # Cargo features and build args
 features := platform-$(PLATFORM)
-
-ifeq ($(RVM), on)
-  features += rvm
-endif
 
 build_args := --no-default-features --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
 ifeq ($(MODE), release)
@@ -70,8 +73,11 @@ $(kernel_bin): kernel
 user:
 	@cd ../user && make build
 
-kernel: user
+kernel:
 	@echo Arch: $(ARCH), Platform: $(PLATFORM)
+ifneq ($(shell cat .makeargs), $(make_args))
+	@echo $(make_args) > .makeargs
+endif
 	cargo build $(build_args)
 
 clean:
@@ -84,7 +90,7 @@ clippy:
 disasm:
 	@$(OBJDUMP) $(kernel_elf) | less
 
-run: build justrun
+run: user build justrun
 
 justrun:
 	$(qemu) $(qemu_args)

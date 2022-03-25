@@ -11,7 +11,7 @@
     "panic-strategy": "abort",
     "pre-link-args": {
         "ld.lld": [
-            "-Tsrc/arch/x86_64/linker.ld"
+            "-Tlinker.ld"
         ]
     },
     "target-pointer-width": "64"

@@ -4,9 +4,9 @@ use core::fmt;
 use super::address::{align_down, is_aligned, phys_to_virt, virt_to_phys};
 use super::{MemFlags, PhysFrame, PAGE_SIZE};
 use crate::arch::{instructions, PageTable};
-use crate::config::{USER_STACK_BASE, USER_STACK_SIZE};
+use crate::config::{KERNEL_ASPACE_BASE, KERNEL_ASPACE_SIZE, USER_STACK_BASE, USER_STACK_SIZE};
+use crate::config::{MMIO_REGIONS, PHYS_MEMORY_END};
 use crate::mm::{PhysAddr, VirtAddr};
-use crate::platform::mem::{KERNEL_ASPACE_BASE, KERNEL_ASPACE_SIZE, MMIO_REGIONS, PHYS_MEMORY_END};
 use crate::sync::LazyInit;
 
 extern "C" {
@@ -155,7 +155,7 @@ impl MemorySet {
     }
 
     pub fn insert(&mut self, area: MapArea) {
-        if !area.size > 0 {
+        if area.size > 0 {
             // TODO: check overlap
             if let Entry::Vacant(e) = self.areas.entry(area.start) {
                 self.pt.map_area(e.insert(area));
@@ -360,12 +360,12 @@ impl fmt::Debug for MemorySet {
     }
 }
 
-#[allow(unused)]
+#[allow(dead_code)]
 pub fn remap_test() {
     let pt = &KERNEL_ASPACE.pt;
     let mid_text = VirtAddr::new(stext as usize + (etext as usize - stext as usize) / 2);
     let mid_rodata = VirtAddr::new(srodata as usize + (erodata as usize - srodata as usize) / 2);
-    let mid_data = VirtAddr::new(sdata as usize + (edata as usize - sdata as usize) / 2);
+    let _mid_data = VirtAddr::new(sdata as usize + (edata as usize - sdata as usize) / 2);
     assert!(!pt.query(mid_text).unwrap().1.contains(MemFlags::WRITE));
     assert!(!pt.query(mid_rodata).unwrap().1.contains(MemFlags::EXECUTE));
     if let Some(region) = MMIO_REGIONS.first() {

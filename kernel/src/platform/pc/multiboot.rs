@@ -1,15 +1,11 @@
+#![allow(dead_code)]
+
 use core::arch::global_asm;
 
 use x86_64::registers::control::{Cr0Flags, Cr4Flags};
 use x86_64::registers::model_specific::EferFlags;
 
-use super::mem::PHYS_VIRT_OFFSET;
-use crate::config::BOOT_KERNEL_STACK_SIZE;
-
-const MULTIBOOT_HEADER_MAGIC: u32 = 0x1BAD_B002;
-const MULTIBOOT_HEADER_FLAGS: u32 = 0x0001_0002;
-
-const MULTIBOOT_BOOTLOADER_MAGIC: u32 = 0x2BAD_B002;
+use crate::config::{BOOT_KERNEL_STACK_SIZE, PHYS_VIRT_OFFSET};
 
 const CR0: u64 = Cr0Flags::PROTECTED_MODE_ENABLE.bits()
     | Cr0Flags::MONITOR_COPROCESSOR.bits()

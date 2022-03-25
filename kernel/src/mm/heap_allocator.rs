@@ -52,7 +52,7 @@ pub fn init_heap() {
     HEAP_ALLOCATOR.init(heap_start, KERNEL_HEAP_SIZE);
 }
 
-#[allow(unused)]
+#[allow(dead_code)]
 pub fn heap_test() {
     use alloc::boxed::Box;
     use alloc::vec::Vec;

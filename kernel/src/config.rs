@@ -1,3 +1,8 @@
+pub use crate::arch::config::*;
+pub use crate::platform::config::*;
+
+pub const PHYS_MEMORY_END: usize = PHYS_MEMORY_BASE + PHYS_MEMORY_SIZE;
+
 pub const BOOT_KERNEL_STACK_SIZE: usize = 4096 * 4; // 16K
 pub const USER_STACK_SIZE: usize = 4096 * 4; // 16K
 pub const USER_STACK_BASE: usize = 0x7fff_0000_0000 - USER_STACK_SIZE;

@@ -1,5 +1,8 @@
 target
-!kernelCargo.lock
+!kernel/Cargo.lock
+kernel/.makeargs
+kernel/linker.ld
+kernel/src/platform/config.rs
 .idea
 .vscode
 .DS_Store

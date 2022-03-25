@@ -21,7 +21,7 @@ impl FreeListAllocator {
         self.range = range;
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub fn available_space(&self) -> usize {
         self.free_list.len() + self.range.end - self.next_available
     }

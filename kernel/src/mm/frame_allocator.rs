@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
-use crate::platform::mem::PHYS_MEMORY_END;
+use crate::config::PHYS_MEMORY_END;
 use crate::sync::SpinNoIrqLock;
 use crate::utils::FreeListAllocator;
 
@@ -68,16 +68,16 @@ pub fn init_frame_allocator() {
         .init(start_paddr.as_usize() / PAGE_SIZE..end_paddr.as_usize() / PAGE_SIZE);
 }
 
-#[allow(unused)]
+#[allow(dead_code)]
 pub fn frame_allocator_test() {
     let mut v: Vec<PhysFrame> = Vec::new();
-    for i in 0..5 {
+    for _ in 0..5 {
         let frame = PhysFrame::alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }
     v.clear();
-    for i in 0..5 {
+    for _ in 0..5 {
         let frame = PhysFrame::alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);

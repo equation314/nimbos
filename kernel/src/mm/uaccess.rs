@@ -4,7 +4,7 @@
 use core::marker::PhantomData;
 use core::mem::{align_of, size_of, MaybeUninit};
 
-use crate::platform::mem::{USER_ASPACE_BASE, USER_ASPACE_SIZE};
+use crate::config::{USER_ASPACE_BASE, USER_ASPACE_SIZE};
 
 #[allow(clippy::absurd_extreme_comparisons)]
 const fn uaccess_ok(vaddr: usize, size: usize) -> bool {

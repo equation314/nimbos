@@ -49,6 +49,7 @@ pub fn flush_icache_all() {
     unsafe { asm!("ic iallu; dsb sy; isb") };
 }
 
+#[allow(dead_code)]
 pub fn wait_for_ints() {
     cortex_a::asm::wfi();
 }

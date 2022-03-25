@@ -5,8 +5,6 @@
 #![feature(const_ptr_offset_from, const_refs_to_cell)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_maybe_uninit_zeroed)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
 
 extern crate alloc;
 #[macro_use]
@@ -61,6 +59,19 @@ pub fn rust_main() -> ! {
     clear_bss();
     drivers::init_early();
     println!("{}", LOGO);
+    println!(
+        "\
+        arch = {}\n\
+        platform = {}\n\
+        build_mode = {}\n\
+        log_level = {}\n\
+        ",
+        option_env!("ARCH").unwrap_or(""),
+        option_env!("PLATFORM").unwrap_or(""),
+        option_env!("MODE").unwrap_or(""),
+        option_env!("LOG").unwrap_or(""),
+    );
+
     mm::init_heap_early();
     logging::init();
     info!("Logging is enabled.");

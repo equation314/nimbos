@@ -6,6 +6,7 @@ mod percpu;
 mod syscall;
 mod trap;
 
+pub mod config;
 pub mod instructions;
 
 pub use self::context::{TaskContext, TrapFrame};

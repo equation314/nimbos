@@ -22,10 +22,6 @@ impl<T> PerCpuData<T> {
         }
     }
 
-    pub fn get_mut(&mut self) -> &mut T {
-        self.data.get_mut()
-    }
-
     pub unsafe fn as_ref(&self) -> &T {
         &*self.data.get()
     }
@@ -84,11 +80,13 @@ impl PerCpu {
         drop(old_task)
     }
 
+    #[allow(dead_code)]
     pub const fn arch_data(&self) -> &PerCpuData<ArchPerCpu> {
         &self.arch
     }
 }
 
+#[allow(dead_code)]
 pub const PERCPU_ARCH_OFFSET: usize = memoffset::offset_of!(PerCpu, arch);
 
 pub fn init_percpu() {

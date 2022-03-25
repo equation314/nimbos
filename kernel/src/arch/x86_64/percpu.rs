@@ -6,9 +6,11 @@ use super::idt::IDT;
 use crate::mm::VirtAddr;
 use crate::percpu::PERCPU_ARCH_OFFSET;
 
+#[allow(dead_code)]
 pub(super) const PERCPU_USER_RSP_OFFSET: usize =
     PERCPU_ARCH_OFFSET + offset_of!(ArchPerCpu, saved_user_rsp);
 
+#[allow(dead_code)]
 pub(super) const PERCPU_KERNEL_RSP_OFFSET: usize = PERCPU_ARCH_OFFSET
     + offset_of!(ArchPerCpu, tss)
     + offset_of!(TaskStateSegment, privilege_stack_table);

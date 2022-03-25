@@ -66,7 +66,7 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
         self.root_paddr
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub unsafe fn from_root(root_paddr: PhysAddr) -> Self {
         Self {
             root_paddr,
@@ -120,7 +120,7 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
         }
     }
 
-    #[allow(unused)]
+    #[allow(dead_code)]
     pub fn dump(&self, limit: usize) {
         use crate::sync::SpinNoIrqLock;
         static LOCK: SpinNoIrqLock<()> = SpinNoIrqLock::new(());

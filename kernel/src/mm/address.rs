@@ -3,7 +3,7 @@
 use core::fmt;
 
 use super::PAGE_SIZE;
-use crate::platform::mem::PHYS_VIRT_OFFSET;
+use crate::config::PHYS_VIRT_OFFSET;
 
 const PA_1TB_BITS: usize = 40;
 const VA_MAX_BITS: usize = 48;

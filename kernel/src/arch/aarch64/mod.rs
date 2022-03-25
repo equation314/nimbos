@@ -3,6 +3,7 @@ mod page_table;
 mod percpu;
 mod trap;
 
+pub mod config;
 pub mod instructions;
 
 pub use self::context::{TaskContext, TrapFrame};

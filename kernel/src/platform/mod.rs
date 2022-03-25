@@ -1,5 +1,5 @@
 cfg_if! {
-    if #[cfg(feature = "platform-pc")] {
+    if #[cfg(any(feature = "platform-pc", feature = "platform-pc-rvm"))] {
         mod pc;
         pub use self::pc::*;
     } else if #[cfg(feature = "platform-qemu-virt-arm")] {
@@ -7,3 +7,5 @@ cfg_if! {
         pub use self::qemu_virt_arm::*;
     }
 }
+
+pub mod config;

@@ -3,19 +3,6 @@ name: Build CI
 on: [push, pull_request]
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly-2022-02-22
-        override: true
-        components: rustfmt
-    - name: Check code format
-      run: cd kernel && cargo fmt -- --check
-
   clippy:
     runs-on: ubuntu-latest
     strategy:
@@ -29,9 +16,11 @@ jobs:
         profile: minimal
         toolchain: nightly-2022-02-22
         override: true
-        components: rust-src, clippy
+        components: rust-src, clippy, rustfmt
     - name: Clippy
       run: make -C kernel clippy ARCH=${{ matrix.arch }}
+    - name: Check code format
+      run: cd kernel && cargo fmt -- --check
 
   build:
     runs-on: ${{ matrix.os }}

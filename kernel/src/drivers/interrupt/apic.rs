@@ -1,3 +1,7 @@
+//! Intel Local APIC and IO APIC.
+
+#![allow(dead_code)]
+
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 
 use super::IrqHandlerResult;
