@@ -3,6 +3,7 @@ ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
 RVM ?= off
+ACCEL ?= on
 
 # Platform
 ifeq ($(ARCH), x86_64)
@@ -43,11 +44,14 @@ GDB := gdb-multiarch
 # QEMU
 qemu := qemu-system-$(ARCH)
 qemu_args := -nographic -m 128M
+
+ifeq ($(ACCEL), on)
+  qemu_args += -cpu host -accel kvm
+endif
+
 ifeq ($(ARCH), x86_64)
   qemu_args += \
     -machine q35 \
-	-cpu host \
-	-accel kvm \
 	-serial mon:stdio \
     -kernel $(kernel_elf)
 else ifeq ($(ARCH), aarch64)
