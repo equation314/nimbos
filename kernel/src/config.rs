@@ -12,3 +12,5 @@ pub const KERNEL_HEAP_SIZE: usize = 0x40_0000; // 4M
 pub const MAX_CPUS: usize = 1;
 
 pub const TICKS_PER_SEC: u64 = 100;
+
+pub const SYSCALL_IPI_IRQ_NUM: usize = 13;

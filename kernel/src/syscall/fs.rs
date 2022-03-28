@@ -32,6 +32,7 @@ pub fn sys_read(fd: usize, mut buf: UserOutPtr<u8>, len: usize) -> isize {
             loop {
                 if let Some(c) = console_getchar() {
                     buf.write(c);
+                    crate::drivers::interrupt::send_ipi(crate::config::SYSCALL_IPI_IRQ_NUM);
                     return 1;
                 } else {
                     CurrentTask::get().yield_now();

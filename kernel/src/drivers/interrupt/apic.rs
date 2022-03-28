@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use x2apic::ioapic::IoApic;
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 
 use super::IrqHandlerResult;
@@ -13,6 +14,8 @@ use crate::sync::LazyInit;
 const APIC_TIMER_VECTOR: usize = 0xf0;
 const APIC_SPURIOUS_VECTOR: usize = 0xf1;
 const APIC_ERROR_VECTOR: usize = 0xf2;
+
+const IO_APIC_BASE: PhysAddr = PhysAddr::new(0xfec0_0000);
 
 pub const IRQ_COUNT: usize = 256;
 
@@ -29,6 +32,17 @@ pub fn set_enable(_vector: usize, _enable: bool) {
 pub fn handle_irq(vector: usize) -> IrqHandlerResult {
     lapic_eoi();
     super::HANDLERS.handle(vector)
+}
+
+pub fn send_ipi(irq_num: usize) {
+    let mut io_apic = unsafe { IoApic::new(IO_APIC_BASE.into_kvaddr().as_usize() as _) };
+    let entry = unsafe { io_apic.table_entry(irq_num as _) };
+    let vector = entry.vector();
+    let dest = entry.dest();
+    if vector >= 0x20 {
+        debug!("send_ipi {} {}", vector, dest);
+        unsafe { LOCAL_APIC.as_mut().send_ipi(vector, dest as _) };
+    }
 }
 
 pub fn init() {
