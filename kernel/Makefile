@@ -31,6 +31,10 @@ kernel_bin := $(kernel_elf).bin
 # Cargo features and build args
 features := platform-$(PLATFORM)
 
+ifeq ($(RVM), on)
+  features += rvm
+endif
+
 build_args := --no-default-features --features "$(features)" --target $(target) -Zbuild-std=core,alloc -Zbuild-std-features=compiler-builtins-mem
 ifeq ($(MODE), release)
   build_args += --release
@@ -45,11 +49,11 @@ GDB := gdb-multiarch
 qemu := qemu-system-$(ARCH)
 qemu_args := -nographic -m 128M
 
-ifeq ($(ACCEL), on)
-  qemu_args += -cpu host -accel kvm
-endif
 
 ifeq ($(ARCH), x86_64)
+  ifeq ($(ACCEL), on)
+    qemu_args += -cpu host -accel kvm
+  endif
   qemu_args += \
     -machine q35 \
 	-serial mon:stdio \

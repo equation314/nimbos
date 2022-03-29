@@ -40,7 +40,7 @@ pub fn send_ipi(irq_num: usize) {
     let vector = entry.vector();
     let dest = entry.dest();
     if vector >= 0x20 {
-        debug!("send_ipi {} {}", vector, dest);
+        error!("send_ipi {} {}", vector, dest);
         unsafe { LOCAL_APIC.as_mut().send_ipi(vector, dest as _) };
     }
 }

@@ -27,6 +27,9 @@ mod syscall;
 mod task;
 mod utils;
 
+#[cfg(feature = "platform-pc-rvm")]
+mod ipc;
+
 #[cfg(not(test))]
 mod lang_items;
 
@@ -81,6 +84,9 @@ pub fn rust_main() -> ! {
 
     mm::init();
     drivers::init();
+
+    #[cfg(feature = "rvm")]
+    ipc::init();
 
     task::init();
     loader::list_apps();

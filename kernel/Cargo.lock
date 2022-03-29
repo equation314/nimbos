@@ -75,6 +75,7 @@ dependencies = [
  "cortex-a",
  "log",
  "memoffset",
+ "numeric-enum-macro",
  "raw-cpuid",
  "serde",
  "tock-registers",
@@ -84,6 +85,12 @@ dependencies = [
  "x86_64",
  "xmas-elf",
 ]
+
+[[package]]
+name = "numeric-enum-macro"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "300e4bdb6b46b592948e700ea1ef24a4296491f6a0ee722b258040abd15a3714"
 
 [[package]]
 name = "paste"
