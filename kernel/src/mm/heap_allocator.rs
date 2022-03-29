@@ -31,6 +31,7 @@ unsafe impl GlobalAlloc for LockedHeap {
         self.0.lock().dealloc(NonNull::new_unchecked(ptr), layout)
     }
 }
+
 #[cfg_attr(not(test), global_allocator)]
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 

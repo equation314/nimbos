@@ -31,7 +31,7 @@ cfg_if! {
 
             pub const SYSCALL_SEND_BUF_SIZE: usize = 4096; // 4K
             pub const SYSCALL_RECV_BUF_SIZE: usize = 4096; // 4K
-            pub const SYSCALL_DATA_BUF_SIZE: usize = 4096 * 16; // 64 K
+            pub const SYSCALL_DATA_BUF_SIZE: usize = 0x10_0000; // 1M
 
             pub const SYSCALL_SEND_BUF_PADDR: usize = super::PHYS_MEMORY_END;
             pub const SYSCALL_RECV_BUF_PADDR: usize = SYSCALL_SEND_BUF_PADDR + SYSCALL_SEND_BUF_SIZE;

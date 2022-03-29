@@ -107,6 +107,10 @@ impl<T, P: ReadPolicy> UserPtr<T, P> {
         unsafe { copy_from_user(buf.as_mut_ptr(), self.ptr, max_len.min(N)) };
         buf
     }
+
+    pub unsafe fn read_ptr(&self, dst: *mut T, len: usize) {
+        copy_from_user(dst, self.ptr, len)
+    }
 }
 
 impl<P: ReadPolicy> UserPtr<u8, P> {

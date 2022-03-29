@@ -1,6 +1,9 @@
 //! Inter-Processor Communication.
 
+mod data_pool;
 mod structs;
+
+pub mod syscall;
 
 pub use structs::IpcOpcode;
 
@@ -15,9 +18,10 @@ pub fn notify() {
 pub fn init() {
     IpcBuffer::get_send_buffer().init(ipc::SYSCALL_SEND_BUF_SIZE);
     IpcBuffer::get_recv_buffer().init(ipc::SYSCALL_RECV_BUF_SIZE);
+    data_pool::init();
 }
 
-pub fn send_request(opcode: IpcOpcode, args: u64) {
+fn send_request(opcode: IpcOpcode, args: u64) {
     while !IpcBuffer::get_send_buffer().send(opcode, args) {
         CurrentTask::get().yield_now();
     }

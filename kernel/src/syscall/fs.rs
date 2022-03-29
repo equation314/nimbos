@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use crate::drivers::uart::console_getchar;
 use crate::mm::{UserInPtr, UserOutPtr};
 use crate::task::CurrentTask;
@@ -7,12 +10,8 @@ const FD_STDOUT: usize = 1;
 const FD_STDERR: usize = 2;
 const CHUNK_SIZE: usize = 256;
 
+#[cfg(not(feature = "rvm"))]
 pub fn sys_write(fd: usize, buf: UserInPtr<u8>, len: usize) -> isize {
-    #[cfg(feature = "rvm")]
-    {
-        use crate::ipc::IpcOpcode;
-        crate::ipc::send_request(IpcOpcode::Write, 2333);
-    }
     match fd {
         FD_STDOUT | FD_STDERR => {
             let mut count = 0;
