@@ -13,3 +13,21 @@ cfg_if! {
 }
 
 pub use self::imp::{get_time_ns, init};
+
+use crate::sync::SpinNoIrqLock;
+use alloc::vec::Vec;
+
+type TimerCallback = fn();
+
+static TIMER_EVENTS: SpinNoIrqLock<Vec<TimerCallback>> = SpinNoIrqLock::new(Vec::new());
+
+pub fn timer_tick() {
+    assert!(crate::arch::instructions::irqs_disabled());
+    for callback in TIMER_EVENTS.lock().iter() {
+        callback();
+    }
+}
+
+pub fn add_timer_event(callback: TimerCallback) {
+    TIMER_EVENTS.lock().push(callback);
+}

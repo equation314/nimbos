@@ -18,7 +18,9 @@ mod time;
 #[cfg(feature = "rvm")]
 use crate::scf::syscall::*;
 
+#[cfg(not(feature = "rvm"))]
 use self::fs::*;
+
 use self::task::*;
 use self::time::*;
 use crate::arch::{instructions, TrapFrame};

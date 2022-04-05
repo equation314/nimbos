@@ -57,9 +57,16 @@ pub fn init() {
         .set_xapic_base(base_vaddr.as_usize() as u64)
         .build()
         .unwrap();
-    unsafe { lapic.enable() };
+    unsafe {
+        lapic.enable();
+        // APIC may be software disabled when enable the timer at the first time, we need to re-enable it.
+        lapic.enable_timer();
+    }
     LOCAL_APIC.init_by(PerCpuData::new(lapic));
-    super::register_handler(APIC_TIMER_VECTOR, || IrqHandlerResult::Reschedule);
+    super::register_handler(APIC_TIMER_VECTOR, || {
+        crate::drivers::timer::timer_tick();
+        IrqHandlerResult::Reschedule
+    });
 }
 
 pub fn init_local_apic_ap() {

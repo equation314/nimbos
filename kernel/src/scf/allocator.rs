@@ -73,8 +73,8 @@ impl SyscallDataBuffer {
         }
     }
 
-    #[allow(dead_code)]
     pub unsafe fn dealloc<T: Sized>(&self, ptr: *const T) {
+        assert!((self.base_vaddr..self.base_vaddr + self.size).contains(&(ptr as usize)));
         self.heap
             .lock()
             .dealloc(NonNull::new_unchecked(ptr as *mut u8), Layout::new::<T>())

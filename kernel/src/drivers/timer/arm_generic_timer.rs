@@ -26,6 +26,7 @@ pub fn init() {
     set_next_trigger();
     interrupt::register_handler(PHYS_TIMER_IRQ_NUM, || {
         set_next_trigger();
+        super::timer_tick();
         IrqHandlerResult::Reschedule
     });
     interrupt::set_enable(PHYS_TIMER_IRQ_NUM, true);

@@ -5,6 +5,43 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::arch::instructions;
 
+pub fn spin_lock_irqsave(lock: &AtomicBool) -> bool {
+    let irq_enabled_before = !instructions::irqs_disabled();
+    instructions::disable_irqs();
+    while lock
+        .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_err()
+    {
+        while lock.load(Ordering::Relaxed) {
+            core::hint::spin_loop();
+        }
+    }
+    irq_enabled_before
+}
+
+pub fn spin_trylock_irqsave(lock: &AtomicBool) -> Option<bool> {
+    let irq_enabled_before = !instructions::irqs_disabled();
+    instructions::disable_irqs();
+    if lock
+        .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        .is_ok()
+    {
+        Some(irq_enabled_before)
+    } else {
+        if irq_enabled_before {
+            instructions::enable_irqs();
+        }
+        None
+    }
+}
+
+pub fn spin_unlock_irqrestore(lock: &AtomicBool, irq_enabled_before: bool) {
+    lock.store(false, Ordering::Release);
+    if irq_enabled_before {
+        instructions::enable_irqs();
+    }
+}
+
 pub struct SpinNoIrqLock<T: ?Sized> {
     lock: AtomicBool,
     data: UnsafeCell<T>,
@@ -36,17 +73,7 @@ impl<T> SpinNoIrqLock<T> {
     }
 
     pub fn lock(&self) -> SpinNoIrqLockGuard<T> {
-        let irq_enabled_before = !instructions::irqs_disabled();
-        instructions::disable_irqs();
-        while self
-            .lock
-            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            while self.is_locked() {
-                core::hint::spin_loop();
-            }
-        }
+        let irq_enabled_before = spin_lock_irqsave(&self.lock);
         SpinNoIrqLockGuard {
             irq_enabled_before,
             lock: &self.lock,
@@ -55,24 +82,11 @@ impl<T> SpinNoIrqLock<T> {
     }
 
     pub fn try_lock(&self) -> Option<SpinNoIrqLockGuard<T>> {
-        let irq_enabled_before = !instructions::irqs_disabled();
-        instructions::disable_irqs();
-        if self
-            .lock
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(SpinNoIrqLockGuard {
-                irq_enabled_before,
-                lock: &self.lock,
-                data: unsafe { &mut *self.data.get() },
-            })
-        } else {
-            if irq_enabled_before {
-                instructions::enable_irqs();
-            }
-            None
-        }
+        spin_trylock_irqsave(&self.lock).map(|irq_enabled_before| SpinNoIrqLockGuard {
+            irq_enabled_before,
+            lock: &self.lock,
+            data: unsafe { &mut *self.data.get() },
+        })
     }
 }
 
@@ -114,9 +128,6 @@ impl<'a, T: ?Sized> DerefMut for SpinNoIrqLockGuard<'a, T> {
 
 impl<'a, T: ?Sized> Drop for SpinNoIrqLockGuard<'a, T> {
     fn drop(&mut self) {
-        self.lock.store(false, Ordering::Release);
-        if self.irq_enabled_before {
-            instructions::enable_irqs();
-        }
+        spin_unlock_irqrestore(self.lock, self.irq_enabled_before)
     }
 }

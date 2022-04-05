@@ -29,6 +29,7 @@ pub fn sys_write(fd: usize, buf: UserInPtr<u8>, len: usize) -> isize {
     }
 }
 
+#[cfg(not(feature = "rvm"))]
 pub fn sys_read(fd: usize, mut buf: UserOutPtr<u8>, len: usize) -> isize {
     match fd {
         FD_STDIN => {
@@ -36,8 +37,6 @@ pub fn sys_read(fd: usize, mut buf: UserOutPtr<u8>, len: usize) -> isize {
             loop {
                 if let Some(c) = console_getchar() {
                     buf.write(c);
-                    #[cfg(feature = "rvm")]
-                    crate::scf::notify();
                     return 1;
                 } else {
                     CurrentTask::get().yield_now();
