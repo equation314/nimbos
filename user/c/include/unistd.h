@@ -1,7 +1,7 @@
 #ifndef __UNISTD_H__
 #define __UNISTD_H__
 
-#include <stddef.h>
+#include <stdint.h>
 
 ssize_t read(int, void *, size_t);
 ssize_t write(int, const void *, size_t);

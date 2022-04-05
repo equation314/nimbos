@@ -1,5 +1,5 @@
 #include <pthread.h>
-#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define __MAX_THREADS       16

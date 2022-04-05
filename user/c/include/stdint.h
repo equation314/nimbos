@@ -1,5 +1,5 @@
-#ifndef __STDDEF_H__
-#define __STDDEF_H__
+#ifndef __STDINT_H__
+#define __STDINT_H__
 
 /* Represents true-or-false values */
 typedef int bool;
@@ -35,4 +35,4 @@ typedef int pid_t;
 
 #define NULL ((void *)0)
 
-#endif // __STDDEF_H__
+#endif // __STDINT_H__

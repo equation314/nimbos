@@ -1,7 +1,7 @@
 #ifndef __STRING_H__
 #define __STRING_H__
 
-#include <stddef.h>
+#include <stdint.h>
 
 int isspace(int c);
 int isdigit(int c);

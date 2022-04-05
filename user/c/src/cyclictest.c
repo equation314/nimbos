@@ -20,7 +20,7 @@ musl-gcc cyclictest.c -lpthread -DUSE_MUSL
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <stdint.h>
 /*
  * number of timerthreads
  */

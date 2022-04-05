@@ -325,24 +325,18 @@ pub fn init_kernel_aspace() {
     );
     #[cfg(feature = "rvm")]
     {
-        use crate::config::ipc::*;
-        map_range(
-            phys_to_virt(SYSCALL_SEND_BUF_PADDR),
-            phys_to_virt(SYSCALL_SEND_BUF_PADDR + SYSCALL_SEND_BUF_SIZE),
-            MemFlags::READ | MemFlags::WRITE,
-            "syscall send buffer",
-        );
-        map_range(
-            phys_to_virt(SYSCALL_RECV_BUF_PADDR),
-            phys_to_virt(SYSCALL_RECV_BUF_PADDR + SYSCALL_RECV_BUF_SIZE),
-            MemFlags::READ | MemFlags::WRITE,
-            "syscall recv buffer",
-        );
+        use crate::config::scf::*;
         map_range(
             phys_to_virt(SYSCALL_DATA_BUF_PADDR),
             phys_to_virt(SYSCALL_DATA_BUF_PADDR + SYSCALL_DATA_BUF_SIZE),
             MemFlags::READ | MemFlags::WRITE,
             "syscall data buffer",
+        );
+        map_range(
+            phys_to_virt(SYSCALL_QUEUE_BUF_PADDR),
+            phys_to_virt(SYSCALL_QUEUE_BUF_PADDR + SYSCALL_QUEUE_BUF_SIZE),
+            MemFlags::READ | MemFlags::WRITE,
+            "syscall queue buffer",
         );
     }
     for (base, size) in MMIO_REGIONS {

@@ -16,7 +16,7 @@ mod task;
 mod time;
 
 #[cfg(feature = "rvm")]
-use crate::ipc::syscall::*;
+use crate::scf::syscall::*;
 
 use self::fs::*;
 use self::task::*;

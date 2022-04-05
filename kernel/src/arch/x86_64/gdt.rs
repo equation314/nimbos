@@ -30,7 +30,7 @@ impl GdtStruct {
     }
 
     pub fn init(&mut self, tss: &'static TaskStateSegment) {
-        // first 3 entries are the same as in multiboot.rs
+        // first 3 entries are the same as in multiboot.S
         self.table[1] = DescriptorFlags::KERNEL_CODE32.bits(); // 0x00cf9b000000ffff
         self.table[2] = DescriptorFlags::KERNEL_CODE64.bits(); // 0x00af9b000000ffff
         self.table[3] = DescriptorFlags::KERNEL_DATA.bits(); // 0x00cf93000000ffff
