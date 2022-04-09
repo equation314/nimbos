@@ -47,7 +47,11 @@ qemu := qemu-system-$(ARCH)
 qemu_args := -nographic -m 128M
 
 ifeq ($(ACCEL), on)
-  qemu_args += -cpu host -accel kvm
+  ifeq ($(shell uname), Darwin)
+    qemu_args += -cpu host -accel hvf
+  else
+    qemu_args += -cpu host -accel kvm
+  endif
 endif
 
 ifeq ($(ARCH), x86_64)
