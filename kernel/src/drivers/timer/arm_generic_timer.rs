@@ -5,7 +5,7 @@ use tock_registers::interfaces::{Readable, Writeable};
 
 use super::NSEC_PER_SEC;
 use crate::config::TICKS_PER_SEC;
-use crate::drivers::interrupt::{self, IrqHandlerResult};
+use crate::drivers::interrupt;
 use crate::sync::LazyInit;
 
 const PHYS_TIMER_IRQ_NUM: usize = 30;
@@ -26,7 +26,7 @@ pub fn init() {
     set_next_trigger();
     interrupt::register_handler(PHYS_TIMER_IRQ_NUM, || {
         set_next_trigger();
-        IrqHandlerResult::Reschedule
+        super::timer_tick()
     });
     interrupt::set_enable(PHYS_TIMER_IRQ_NUM, true);
 }

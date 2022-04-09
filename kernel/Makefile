@@ -3,16 +3,17 @@ ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
 RVM ?= off
-ACCEL ?= on
 
 # Platform
 ifeq ($(ARCH), x86_64)
+  ACCEL ?= on
   ifeq ($(RVM), on)
     PLATFORM ?= pc-rvm
   else
     PLATFORM ?= pc
   endif
 else ifeq ($(ARCH), aarch64)
+  ACCEL ?= off
   PLATFORM ?= qemu-virt-arm
 endif
 
@@ -52,7 +53,7 @@ endif
 ifeq ($(ARCH), x86_64)
   qemu_args += \
     -machine q35 \
-	-serial mon:stdio \
+    -serial mon:stdio \
     -kernel $(kernel_elf)
 else ifeq ($(ARCH), aarch64)
   qemu_args += \
@@ -79,7 +80,10 @@ user:
 
 kernel:
 	@echo Arch: $(ARCH), Platform: $(PLATFORM)
-ifneq ($(shell cat .makeargs), $(make_args))
+ifneq ($(shell head -n1 src/platform/config.rs 2> /dev/null | cut -d' ' -f2), $(ARCH)-$(PLATFORM))
+	@echo $(make_args) > .makeargs
+endif
+ifneq ($(shell cat .makeargs 2> /dev/null), $(make_args))
 	@echo $(make_args) > .makeargs
 endif
 	cargo build $(build_args)
