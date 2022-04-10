@@ -22,6 +22,7 @@ mod loader;
 mod mm;
 mod percpu;
 mod platform;
+mod structs;
 mod sync;
 mod syscall;
 mod task;

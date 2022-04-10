@@ -1,12 +1,13 @@
 use raw_cpuid::CpuId;
 
-use crate::sync::LazyInit;
+use crate::{structs::TimeValue, sync::LazyInit};
 
 static CPU_FREQUENCY: LazyInit<u16> = LazyInit::new();
 
-pub fn get_time_ns() -> u64 {
+pub fn current_time() -> TimeValue {
     let cycle = unsafe { core::arch::x86_64::_rdtsc() };
-    cycle * 1000 / *CPU_FREQUENCY as u64
+    let ns = cycle * 1000 / *CPU_FREQUENCY as u64;
+    TimeValue::from_nanos(ns)
 }
 
 pub fn init() {

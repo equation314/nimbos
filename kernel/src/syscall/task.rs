@@ -48,10 +48,7 @@ pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>) -> isize {
 }
 
 pub fn sys_nanosleep(req: UserInPtr<TimeSpec>) -> isize {
-    use crate::drivers::timer::get_time_ns;
-    let stop_time = get_time_ns() + req.read().total_nano_sec();
-    while get_time_ns() < stop_time {
-        current().yield_now();
-    }
+    let deadline = crate::drivers::timer::current_time() + req.read().into();
+    current().sleep(deadline);
     0
 }

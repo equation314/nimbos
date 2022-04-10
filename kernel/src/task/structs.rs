@@ -8,6 +8,7 @@ use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
 use crate::mm::{kernel_aspace, MemorySet, VirtAddr};
 use crate::percpu::PerCpu;
+use crate::structs::TimeValue;
 use crate::sync::{LazyInit, Mutex};
 
 pub(super) static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
@@ -252,8 +253,16 @@ impl<'a> CurrentTask<'a> {
         PerCpu::current_task()
     }
 
+    pub fn clone_task(&self) -> Arc<Task> {
+        self.0.clone()
+    }
+
     pub fn yield_now(&self) {
-        TASK_MANAGER.lock().yield_current(self)
+        TASK_MANAGER.lock().yield_current(self);
+    }
+
+    pub fn sleep(&self, deadline: TimeValue) {
+        TASK_MANAGER.lock().sleep_current(self, deadline);
     }
 
     pub fn exit(&self, exit_code: i32) -> ! {

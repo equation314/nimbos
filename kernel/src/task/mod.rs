@@ -10,6 +10,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use self::manager::TASK_MANAGER;
 use self::structs::ROOT_TASK;
 use crate::arch::instructions;
+use crate::drivers::interrupt::IrqHandlerResult;
 
 static TASK_INITED: AtomicBool = AtomicBool::new(false);
 
@@ -57,6 +58,10 @@ pub fn init() {
 
 pub fn current<'a>() -> CurrentTask<'a> {
     CurrentTask::get()
+}
+
+pub fn timer_tick() -> IrqHandlerResult {
+    TASK_MANAGER.lock().timer_tick()
 }
 
 pub fn spawn_task(task: Arc<Task>) {

@@ -4,7 +4,8 @@ use alloc::sync::Arc;
 use super::structs::Task;
 
 pub trait Scheduler {
-    fn add_ready_task(&mut self, t: &Arc<Task>);
+    fn push_ready_task_front(&mut self, t: Arc<Task>);
+    fn push_ready_task_back(&mut self, t: Arc<Task>);
     fn pick_next_task(&mut self) -> Option<Arc<Task>>;
     fn timer_tick(&mut self);
 }
@@ -32,8 +33,12 @@ impl SimpleScheduler {
 }
 
 impl Scheduler for SimpleScheduler {
-    fn add_ready_task(&mut self, t: &Arc<Task>) {
-        self.ready_queue.push_back(SchedulerState::new(t.clone()));
+    fn push_ready_task_back(&mut self, t: Arc<Task>) {
+        self.ready_queue.push_back(SchedulerState::new(t));
+    }
+
+    fn push_ready_task_front(&mut self, t: Arc<Task>) {
+        self.ready_queue.push_front(SchedulerState::new(t));
     }
 
     fn pick_next_task(&mut self) -> Option<Arc<Task>> {
