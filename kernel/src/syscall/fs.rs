@@ -1,6 +1,5 @@
 use crate::drivers::uart::console_getchar;
 use crate::mm::{UserInPtr, UserOutPtr};
-use crate::task::CurrentTask;
 
 const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
@@ -34,7 +33,7 @@ pub fn sys_read(fd: usize, mut buf: UserOutPtr<u8>, len: usize) -> isize {
                     buf.write(c);
                     return 1;
                 } else {
-                    CurrentTask::get().yield_now();
+                    crate::task::current().yield_now();
                 }
             }
         }

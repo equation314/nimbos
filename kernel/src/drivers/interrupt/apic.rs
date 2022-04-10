@@ -7,8 +7,7 @@ use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerM
 use super::IrqHandlerResult;
 use crate::config::TICKS_PER_SEC;
 use crate::mm::PhysAddr;
-use crate::percpu::PerCpuData;
-use crate::sync::LazyInit;
+use crate::sync::{LazyInit, PerCpuData};
 
 const APIC_TIMER_VECTOR: usize = 0xf0;
 const APIC_SPURIOUS_VECTOR: usize = 0xf1;

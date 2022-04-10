@@ -26,7 +26,8 @@ pub struct TaskId(usize);
 pub enum TaskState {
     Ready = 1,
     Running = 2,
-    Zombie = 3,
+    Sleeping = 3,
+    Zombie = 4,
 }
 
 pub struct Task {
@@ -69,7 +70,8 @@ impl From<u8> for TaskState {
         match state {
             1 => Self::Ready,
             2 => Self::Running,
-            3 => Self::Zombie,
+            3 => Self::Sleeping,
+            4 => Self::Zombie,
             _ => panic!("invalid task state: {}", state),
         }
     }
@@ -246,8 +248,8 @@ fn task_entry() -> ! {
 pub struct CurrentTask<'a>(pub &'a Arc<Task>);
 
 impl<'a> CurrentTask<'a> {
-    pub fn get() -> Self {
-        PerCpu::current().current_task()
+    pub(super) fn get() -> Self {
+        PerCpu::current_task()
     }
 
     pub fn yield_now(&self) {

@@ -4,7 +4,7 @@ use x86::{controlregs::cr2, irq::*};
 
 use super::context::TrapFrame;
 use crate::drivers::interrupt::{handle_irq, IrqHandlerResult};
-use crate::{syscall::syscall, task::CurrentTask};
+use crate::{syscall::syscall, task};
 
 global_asm!(include_str!("trap.S"));
 
@@ -25,7 +25,7 @@ fn x86_trap_handler(tf: &mut TrapFrame) {
                     unsafe { cr2() },
                     tf.error_code,
                 );
-                CurrentTask::get().exit(-1);
+                task::current().exit(-1);
             } else {
                 panic!(
                     "Kernel Page Fault @ {:#x}, fault_vaddr={:#x}, error_code={:#x}",
@@ -40,14 +40,14 @@ fn x86_trap_handler(tf: &mut TrapFrame) {
                 "General Protection Exception @ {:#x}, error_code = {:#x}, kernel killed it.",
                 tf.rip, tf.error_code,
             );
-            CurrentTask::get().exit(-1);
+            task::current().exit(-1);
         }
         SYSCALL_VECTOR => {
             tf.rax = syscall(tf, tf.rax as _, tf.rdi as _, tf.rsi as _, tf.rdx as _) as u64
         }
         IRQ_VECTOR_START..=IRQ_VECTOR_END => {
             if handle_irq(tf.vector as usize) == IrqHandlerResult::Reschedule {
-                CurrentTask::get().yield_now();
+                task::current().yield_now();
             }
         }
         _ => {

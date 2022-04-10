@@ -23,7 +23,7 @@ pub fn init() {
 
     ROOT_TASK.init_by(Task::new_kernel(
         |_| loop {
-            let curr_task = CurrentTask::get();
+            let curr_task = current();
             let mut exit_code = 0;
             while curr_task.waitpid(-1, &mut exit_code) > 0 {}
             if curr_task.children.lock().len() == 0 {
@@ -40,7 +40,7 @@ pub fn init() {
     let test_kernel_task = |arg: usize| {
         println!(
             "test kernel task: pid = {:?}, arg = {:#x}",
-            CurrentTask::get().pid(),
+            current().pid(),
             arg
         );
         0
@@ -55,6 +55,10 @@ pub fn init() {
     TASK_INITED.store(true, Ordering::SeqCst);
 }
 
+pub fn current<'a>() -> CurrentTask<'a> {
+    CurrentTask::get()
+}
+
 pub fn spawn_task(task: Arc<Task>) {
     TASK_MANAGER.lock().spawn(task);
 }
@@ -62,6 +66,6 @@ pub fn spawn_task(task: Arc<Task>) {
 pub fn run() -> ! {
     println!("Running tasks...");
     instructions::enable_irqs();
-    CurrentTask::get().yield_now(); // current task is idle at this time
+    current().yield_now(); // current task is idle at this time
     unreachable!("root task exit!");
 }

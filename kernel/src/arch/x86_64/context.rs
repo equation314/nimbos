@@ -85,7 +85,7 @@ impl TrapFrame {
         );
         instructions::disable_irqs();
         assert_eq!(
-            PerCpu::current().arch_data().as_ref().kernel_stack_top(),
+            PerCpu::current_arch_data().as_ref().kernel_stack_top(),
             kstack_top
         );
         asm!("
@@ -163,8 +163,7 @@ impl TaskContext {
 
     pub fn switch_to(&mut self, next_ctx: &Self) {
         unsafe {
-            PerCpu::current()
-                .arch_data()
+            PerCpu::current_arch_data()
                 .as_mut()
                 .set_kernel_stack_top(next_ctx.kstack_top);
             instructions::set_user_page_table_root(next_ctx.cr3 as usize);

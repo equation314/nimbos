@@ -1,36 +1,11 @@
 use alloc::sync::Arc;
-use core::cell::UnsafeCell;
 
 use crate::arch::{instructions, ArchPerCpu};
 use crate::config::MAX_CPUS;
-use crate::sync::LazyInit;
+use crate::sync::{LazyInit, PerCpuData};
 use crate::task::{CurrentTask, Task};
 
 static CPUS: [LazyInit<PerCpu>; MAX_CPUS] = [LazyInit::new(); MAX_CPUS];
-
-#[repr(transparent)]
-pub struct PerCpuData<T> {
-    data: UnsafeCell<T>,
-}
-
-unsafe impl<T: Send> Sync for PerCpuData<T> {}
-
-impl<T> PerCpuData<T> {
-    pub const fn new(data: T) -> Self {
-        Self {
-            data: UnsafeCell::new(data),
-        }
-    }
-
-    pub unsafe fn as_ref(&self) -> &T {
-        &*self.data.get()
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn as_mut(&self) -> &mut T {
-        &mut *self.data.get()
-    }
-}
 
 /// Each CPU can only accesses its own `PerCpu` instance.
 #[repr(C)]
@@ -54,7 +29,7 @@ impl PerCpu {
         }
     }
 
-    pub fn current<'a>() -> &'a Self {
+    fn current<'a>() -> &'a Self {
         unsafe { &*(instructions::thread_pointer() as *const Self) }
     }
 
@@ -62,27 +37,27 @@ impl PerCpu {
         Self::current().id
     }
 
-    pub const fn idle_task(&self) -> &Arc<Task> {
-        &self.idle_task
+    pub fn idle_task<'a>() -> &'a Arc<Task> {
+        &Self::current().idle_task
     }
 
-    pub fn current_task(&self) -> CurrentTask {
+    pub fn current_task<'a>() -> CurrentTask<'a> {
         // Safety: Even if there is an interrupt and task preemption after
         // calling this method, the reference of percpu data (e.g., `current_task`) can keep unchanged
         // since it will be restored after context switches.
-        CurrentTask(unsafe { self.current_task.as_ref() })
+        CurrentTask(unsafe { Self::current().current_task.as_ref() })
     }
 
-    pub unsafe fn set_current_task(&self, task: Arc<Task>) {
+    pub unsafe fn set_current_task(task: Arc<Task>) {
         // We must disable interrupts and task preemption when update this field.
         assert!(instructions::irqs_disabled());
-        let old_task = core::mem::replace(self.current_task.as_mut(), task);
+        let old_task = core::mem::replace(Self::current().current_task.as_mut(), task);
         drop(old_task)
     }
 
     #[allow(dead_code)]
-    pub const fn arch_data(&self) -> &PerCpuData<ArchPerCpu> {
-        &self.arch
+    pub fn current_arch_data<'a>() -> &'a PerCpuData<ArchPerCpu> {
+        &Self::current().arch
     }
 }
 
@@ -94,6 +69,6 @@ pub fn init_percpu() {
     CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
     unsafe {
         instructions::set_thread_pointer(CPUS[cpu_id].self_vaddr);
-        PerCpu::current().arch.as_mut().init(cpu_id);
+        PerCpu::current_arch_data().as_mut().init(cpu_id);
     }
 }

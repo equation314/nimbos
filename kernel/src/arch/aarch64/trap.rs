@@ -5,7 +5,7 @@ use tock_registers::interfaces::{Readable, Writeable};
 
 use super::TrapFrame;
 use crate::drivers::interrupt::{handle_irq, IrqHandlerResult};
-use crate::{syscall::syscall, task::CurrentTask};
+use crate::{syscall::syscall, task};
 
 global_asm!(include_str!("trap.S"));
 
@@ -58,7 +58,7 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Unknown) => {
             warn!("Unknown exception @ {:#x}, kernel killed it.", tf.elr);
-            CurrentTask::get().exit(-1);
+            task::current().exit(-1);
         }
         Some(ESR_EL1::EC::Value::SVC64) => {
             tf.r[0] = syscall(tf, tf.r[8] as _, tf.r[0] as _, tf.r[1] as _, tf.r[2] as _) as u64
@@ -72,7 +72,7 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
                 FAR_EL1.get(),
                 iss
             );
-            CurrentTask::get().exit(-1);
+            task::current().exit(-1);
         }
         Some(ESR_EL1::EC::Value::DataAbortCurrentEL)
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
@@ -99,6 +99,6 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
 #[no_mangle]
 fn handle_irq_exception(_tf: &mut TrapFrame) {
     if handle_irq(0) == IrqHandlerResult::Reschedule {
-        CurrentTask::get().yield_now();
+        task::current().yield_now();
     }
 }

@@ -47,7 +47,7 @@ pub fn syscall(
         SYSCALL_CLOCK_GETTIME => sys_clock_gettime(arg0, arg1.into()),
         _ => {
             println!("Unsupported syscall_id: {}", syscall_id);
-            crate::task::CurrentTask::get().exit(-1);
+            crate::task::current().exit(-1);
         }
     };
     debug!("syscall {} ret => {:#x}", syscall_id, ret);

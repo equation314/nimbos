@@ -35,7 +35,7 @@ impl<S: Scheduler> TaskManager<S> {
         assert!(Arc::strong_count(&next_task) > 1);
 
         unsafe {
-            PerCpu::current().set_current_task(next_task);
+            PerCpu::set_current_task(next_task);
             (&mut *curr_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
     }
@@ -43,9 +43,10 @@ impl<S: Scheduler> TaskManager<S> {
     fn resched(&mut self, curr_task: &CurrentTask) {
         assert!(curr_task.state() != TaskState::Running);
         if let Some(next_task) = self.scheduler.pick_next_task() {
+            // let `next_task` hold its ownership to avoid clone
             self.switch_to(curr_task, next_task);
         } else {
-            self.switch_to(curr_task, PerCpu::current().idle_task().clone());
+            self.switch_to(curr_task, PerCpu::idle_task().clone());
         }
     }
 

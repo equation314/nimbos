@@ -5,7 +5,6 @@ use log::{self, Level, LevelFilter, Log, Metadata, Record};
 use crate::drivers::{timer::get_time_ns, uart::console_putchar};
 use crate::percpu::PerCpu;
 use crate::sync::Mutex;
-use crate::task::CurrentTask;
 
 struct Stdout;
 
@@ -116,7 +115,7 @@ impl Log for SimpleLogger {
         };
         if crate::task::is_init() {
             let cpu_id = PerCpu::current_cpu_id();
-            let pid = CurrentTask::get().pid().as_usize();
+            let pid = crate::task::current().pid().as_usize();
             let now_us = get_time_ns() / 1000;
             print(with_color!(
                 ColorCode::White,
