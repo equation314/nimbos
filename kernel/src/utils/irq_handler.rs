@@ -22,8 +22,11 @@ impl<const IRQ_COUNT: usize> IrqHandlerTable<IRQ_COUNT> {
     pub fn handle(&self, vector: usize) {
         let handler = self.handlers[vector].load(Ordering::Acquire);
         if handler != 0 {
+            trace!("IRQ {}", vector);
             let handler: IrqHandler = unsafe { core::mem::transmute(handler) };
             handler();
+        } else {
+            warn!("Unhandled IRQ {}", vector);
         }
     }
 }

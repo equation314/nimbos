@@ -2,9 +2,8 @@
 
 #![allow(dead_code)]
 
-use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
+use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder};
 
-use crate::config::TICKS_PER_SEC;
 use crate::mm::PhysAddr;
 use crate::sync::{LazyInit, PerCpuData};
 use crate::utils::irq_handler::{IrqHandler, IrqHandlerTable};
@@ -16,11 +15,10 @@ const APIC_ERROR_VECTOR: usize = 0xf2;
 const IRQ_COUNT: usize = 256;
 
 static LOCAL_APIC: LazyInit<PerCpuData<LocalApic>> = LazyInit::new();
-
 static HANDLERS: IrqHandlerTable<IRQ_COUNT> = IrqHandlerTable::new();
 
 fn lapic_eoi() {
-    unsafe { LOCAL_APIC.as_mut().end_of_interrupt() };
+    unsafe { local_apic().end_of_interrupt() };
 }
 
 pub fn set_enable(_vector: usize, _enable: bool) {
@@ -44,22 +42,15 @@ pub fn init() {
         .timer_vector(APIC_TIMER_VECTOR)
         .error_vector(APIC_ERROR_VECTOR)
         .spurious_vector(APIC_SPURIOUS_VECTOR)
-        .timer_mode(TimerMode::Periodic)
-        .timer_divide(TimerDivide::Div256) // divide by 1
-        .timer_initial((1_000_000_000 / TICKS_PER_SEC) as u32) // FIXME: need to calibrate
         .set_xapic_base(base_vaddr.as_usize() as u64)
         .build()
         .unwrap();
-    unsafe {
-        lapic.enable();
-        // APIC may be software disabled when enable the timer at the first time, we need to re-enable it.
-        lapic.enable_timer();
-    }
+    unsafe { lapic.enable() };
     LOCAL_APIC.init_by(PerCpuData::new(lapic));
 
     super::register_handler(APIC_TIMER_VECTOR, crate::timer::handle_timer_irq);
 }
 
-pub fn init_local_apic_ap() {
-    unsafe { LOCAL_APIC.as_mut().enable() };
+pub fn local_apic() -> &'static mut LocalApic {
+    unsafe { LOCAL_APIC.as_mut() }
 }

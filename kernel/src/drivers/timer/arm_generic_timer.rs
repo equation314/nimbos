@@ -3,7 +3,6 @@
 use cortex_a::registers::{CNTFRQ_EL0, CNTPCT_EL0, CNTP_CTL_EL0, CNTP_TVAL_EL0};
 use tock_registers::interfaces::{Readable, Writeable};
 
-use crate::config::TICKS_PER_SEC;
 use crate::drivers::interrupt;
 use crate::sync::LazyInit;
 use crate::timer::TimeValue;
@@ -14,22 +13,36 @@ const NANOS_PER_SEC: u64 = 1_000_000_000;
 
 static CLOCK_FREQ: LazyInit<u64> = LazyInit::new();
 
-pub fn current_time() -> TimeValue {
-    let ns = CNTPCT_EL0.get() * NANOS_PER_SEC / *CLOCK_FREQ;
-    TimeValue::from_nanos(ns)
+fn ticks_to_nanos(ticks: u64) -> u64 {
+    ticks * NANOS_PER_SEC / *CLOCK_FREQ
 }
 
-fn set_next_trigger() {
-    CNTP_TVAL_EL0.set(*CLOCK_FREQ / TICKS_PER_SEC);
+fn nanos_to_ticks(nanos: u64) -> u64 {
+    nanos * *CLOCK_FREQ / NANOS_PER_SEC
+}
+
+pub fn current_time_nanos() -> u64 {
+    ticks_to_nanos(CNTPCT_EL0.get())
+}
+
+pub fn current_time() -> TimeValue {
+    TimeValue::from_nanos(current_time_nanos())
+}
+
+pub fn set_next_trigger(deadline_ns: u64) {
+    let now_ns = current_time_nanos();
+    if now_ns < deadline_ns {
+        let interval = nanos_to_ticks(deadline_ns - now_ns);
+        debug_assert!(interval <= u32::MAX as u64);
+        CNTP_TVAL_EL0.set(interval);
+    } else {
+        CNTP_TVAL_EL0.set(0);
+    }
 }
 
 pub fn init() {
     CLOCK_FREQ.init_by(CNTFRQ_EL0.get());
     CNTP_CTL_EL0.write(CNTP_CTL_EL0::ENABLE::SET);
-    set_next_trigger();
-    interrupt::register_handler(PHYS_TIMER_IRQ_NUM, || {
-        set_next_trigger();
-        crate::timer::handle_timer_irq()
-    });
+    interrupt::register_handler(PHYS_TIMER_IRQ_NUM, crate::timer::handle_timer_irq);
     interrupt::set_enable(PHYS_TIMER_IRQ_NUM, true);
 }

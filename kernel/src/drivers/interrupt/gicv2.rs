@@ -20,7 +20,6 @@ const SPI_BASE: usize = 32;
 const IRQ_COUNT: usize = 1024;
 
 static GIC: LazyInit<Gic> = LazyInit::new();
-
 static HANDLERS: IrqHandlerTable<IRQ_COUNT> = IrqHandlerTable::new();
 
 register_structs! {
