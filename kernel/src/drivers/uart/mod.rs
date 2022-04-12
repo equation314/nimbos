@@ -8,4 +8,5 @@ cfg_if! {
     }
 }
 
-pub use self::imp::{console_getchar, console_putchar, init, init_early};
+pub use self::imp::{console_getchar, console_putchar};
+pub(super) use self::imp::{init, init_early};

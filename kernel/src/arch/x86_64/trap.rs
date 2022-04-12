@@ -3,7 +3,6 @@ use core::arch::global_asm;
 use x86::{controlregs::cr2, irq::*};
 
 use super::context::TrapFrame;
-use crate::drivers::interrupt::{handle_irq, IrqHandlerResult};
 use crate::{syscall::syscall, task};
 
 global_asm!(include_str!("trap.S"));
@@ -46,9 +45,7 @@ fn x86_trap_handler(tf: &mut TrapFrame) {
             tf.rax = syscall(tf, tf.rax as _, tf.rdi as _, tf.rsi as _, tf.rdx as _) as u64
         }
         IRQ_VECTOR_START..=IRQ_VECTOR_END => {
-            if handle_irq(tf.vector as usize) == IrqHandlerResult::Reschedule {
-                task::current().yield_now();
-            }
+            task::handle_irq(tf.vector as usize);
         }
         _ => {
             panic!(

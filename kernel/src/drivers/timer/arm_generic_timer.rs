@@ -5,8 +5,8 @@ use tock_registers::interfaces::{Readable, Writeable};
 
 use crate::config::TICKS_PER_SEC;
 use crate::drivers::interrupt;
-use crate::structs::TimeValue;
 use crate::sync::LazyInit;
+use crate::timer::TimeValue;
 
 const PHYS_TIMER_IRQ_NUM: usize = 30;
 
@@ -29,7 +29,7 @@ pub fn init() {
     set_next_trigger();
     interrupt::register_handler(PHYS_TIMER_IRQ_NUM, || {
         set_next_trigger();
-        super::timer_tick()
+        crate::timer::handle_timer_irq()
     });
     interrupt::set_enable(PHYS_TIMER_IRQ_NUM, true);
 }

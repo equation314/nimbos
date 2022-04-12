@@ -1,6 +1,6 @@
 use raw_cpuid::CpuId;
 
-use crate::{structs::TimeValue, sync::LazyInit};
+use crate::{sync::LazyInit, timer::TimeValue};
 
 static CPU_FREQUENCY: LazyInit<u16> = LazyInit::new();
 

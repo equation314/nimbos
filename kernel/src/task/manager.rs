@@ -1,72 +1,24 @@
-use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
-use core::cmp::{Ord, Ordering, PartialOrd};
 
 use super::schedule::{Scheduler, SimpleScheduler};
 use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
-use crate::drivers::{interrupt::IrqHandlerResult, timer::current_time};
 use crate::percpu::PerCpu;
-use crate::structs::TimeValue;
 use crate::sync::{LazyInit, SpinNoIrqLock};
-
-struct SleepingTask {
-    deadline: TimeValue,
-    task: Arc<Task>,
-}
-
-impl PartialOrd for SleepingTask {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        other.deadline.partial_cmp(&self.deadline) // reverse ordering for Min-heap
-    }
-}
-
-impl Ord for SleepingTask {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.deadline.cmp(&self.deadline) // reverse ordering for Min-heap
-    }
-}
-
-impl PartialEq for SleepingTask {
-    fn eq(&self, other: &Self) -> bool {
-        self.deadline.eq(&other.deadline)
-    }
-}
-
-impl Eq for SleepingTask {}
+use crate::timer::TimeValue;
 
 pub struct TaskManager<S: Scheduler> {
     scheduler: S,
-    sleeping_tasks: BinaryHeap<SleepingTask>,
 }
 
 impl<S: Scheduler> TaskManager<S> {
     fn new(scheduler: S) -> Self {
-        Self {
-            scheduler,
-            sleeping_tasks: BinaryHeap::new(),
-        }
+        Self { scheduler }
     }
 
     pub fn spawn(&mut self, t: Arc<Task>) {
         assert!(t.state() == TaskState::Ready);
         self.scheduler.push_ready_task_back(t);
-    }
-
-    pub fn timer_tick(&mut self) -> IrqHandlerResult {
-        self.scheduler.timer_tick();
-        let mut ret = IrqHandlerResult::Reschedule; // TODO: RR schedule
-        let now = current_time();
-        while let Some(t) = self.sleeping_tasks.peek() {
-            if t.deadline <= now {
-                let t = self.sleeping_tasks.pop().unwrap();
-                self.wakeup(t.task);
-                ret = IrqHandlerResult::Reschedule
-            } else {
-                break;
-            }
-        }
-        ret
     }
 
     fn switch_to(&self, curr_task: &Arc<Task>, next_task: Arc<Task>) {
@@ -118,9 +70,10 @@ impl<S: Scheduler> TaskManager<S> {
         assert!(curr_task.state() == TaskState::Running);
         assert!(!curr_task.is_idle());
         curr_task.set_state(TaskState::Sleeping);
-        self.sleeping_tasks.push(SleepingTask {
-            deadline,
-            task: curr_task.clone_task(),
+        let curr_task_clone = curr_task.clone_task();
+        crate::timer::set_timer(deadline, |_| {
+            TASK_MANAGER.lock().wakeup(curr_task_clone);
+            CurrentTask::get().set_need_resched();
         });
         self.resched(curr_task);
     }

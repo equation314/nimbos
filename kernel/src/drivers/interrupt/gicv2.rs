@@ -6,9 +6,9 @@ use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 
-use super::IrqHandlerResult;
 use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
+use crate::utils::irq_handler::{IrqHandler, IrqHandlerTable};
 
 const GIC_BASE: usize = 0x0800_0000;
 const GICD_BASE: PhysAddr = PhysAddr::new(GIC_BASE);
@@ -17,9 +17,11 @@ const GICC_BASE: PhysAddr = PhysAddr::new(GIC_BASE + 0x10000);
 const PPI_BASE: usize = 16;
 const SPI_BASE: usize = 32;
 
-pub const IRQ_COUNT: usize = 1024;
+const IRQ_COUNT: usize = 1024;
 
 static GIC: LazyInit<Gic> = LazyInit::new();
+
+static HANDLERS: IrqHandlerTable<IRQ_COUNT> = IrqHandlerTable::new();
 
 register_structs! {
     #[allow(non_snake_case)]
@@ -199,14 +201,15 @@ pub fn set_enable(vector: usize, enable: bool) {
     GIC.set_enable(vector, enable);
 }
 
-pub fn handle_irq(_vector: usize) -> IrqHandlerResult {
+pub fn handle_irq(_vector: usize) {
     if let Some(vector) = GIC.pending_irq() {
-        let res = super::HANDLERS.handle(vector);
+        HANDLERS.handle(vector);
         GIC.eoi(vector);
-        res
-    } else {
-        IrqHandlerResult::NoReschedule
     }
+}
+
+pub fn register_handler(vector: usize, handler: IrqHandler) {
+    HANDLERS.register_handler(vector, handler);
 }
 
 pub fn init() {

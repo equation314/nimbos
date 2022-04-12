@@ -22,10 +22,10 @@ mod loader;
 mod mm;
 mod percpu;
 mod platform;
-mod structs;
 mod sync;
 mod syscall;
 mod task;
+mod timer;
 mod utils;
 
 #[cfg(not(test))]
@@ -83,6 +83,7 @@ pub fn rust_main() -> ! {
     mm::init();
     drivers::init();
 
+    timer::init();
     task::init();
     loader::list_apps();
     task::run();

@@ -4,18 +4,20 @@
 
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 
-use super::IrqHandlerResult;
 use crate::config::TICKS_PER_SEC;
 use crate::mm::PhysAddr;
 use crate::sync::{LazyInit, PerCpuData};
+use crate::utils::irq_handler::{IrqHandler, IrqHandlerTable};
 
 const APIC_TIMER_VECTOR: usize = 0xf0;
 const APIC_SPURIOUS_VECTOR: usize = 0xf1;
 const APIC_ERROR_VECTOR: usize = 0xf2;
 
-pub const IRQ_COUNT: usize = 256;
+const IRQ_COUNT: usize = 256;
 
 static LOCAL_APIC: LazyInit<PerCpuData<LocalApic>> = LazyInit::new();
+
+static HANDLERS: IrqHandlerTable<IRQ_COUNT> = IrqHandlerTable::new();
 
 fn lapic_eoi() {
     unsafe { LOCAL_APIC.as_mut().end_of_interrupt() };
@@ -25,9 +27,13 @@ pub fn set_enable(_vector: usize, _enable: bool) {
     // TODO: implement IOAPIC
 }
 
-pub fn handle_irq(vector: usize) -> IrqHandlerResult {
+pub fn handle_irq(vector: usize) {
+    HANDLERS.handle(vector);
     lapic_eoi();
-    super::HANDLERS.handle(vector)
+}
+
+pub fn register_handler(vector: usize, handler: IrqHandler) {
+    HANDLERS.register_handler(vector, handler);
 }
 
 pub fn init() {
@@ -51,7 +57,7 @@ pub fn init() {
     }
     LOCAL_APIC.init_by(PerCpuData::new(lapic));
 
-    super::register_handler(APIC_TIMER_VECTOR, crate::drivers::timer::timer_tick);
+    super::register_handler(APIC_TIMER_VECTOR, crate::timer::handle_timer_irq);
 }
 
 pub fn init_local_apic_ap() {

@@ -2,7 +2,7 @@ use core::fmt::{self, Write};
 
 use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
-use crate::drivers::{timer::current_time, uart::console_putchar};
+use crate::drivers::uart::console_putchar;
 use crate::percpu::PerCpu;
 use crate::sync::Mutex;
 
@@ -116,7 +116,7 @@ impl Log for SimpleLogger {
         if crate::task::is_init() {
             let cpu_id = PerCpu::current_cpu_id();
             let pid = crate::task::current().pid().as_usize();
-            let now = current_time();
+            let now = crate::timer::current_time();
             print(with_color!(
                 ColorCode::White,
                 "[{:>3}.{:06} {} {} {}\n",

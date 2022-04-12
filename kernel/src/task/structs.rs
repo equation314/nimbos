@@ -1,6 +1,6 @@
 use alloc::sync::{Arc, Weak};
 use alloc::{boxed::Box, vec::Vec};
-use core::sync::atomic::{AtomicI32, AtomicU8, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicUsize, Ordering};
 
 use super::manager::{TaskLockedCell, TASK_MANAGER};
 use crate::arch::{instructions, TaskContext, TrapFrame};
@@ -8,8 +8,8 @@ use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
 use crate::mm::{kernel_aspace, MemorySet, VirtAddr};
 use crate::percpu::PerCpu;
-use crate::structs::TimeValue;
 use crate::sync::{LazyInit, Mutex};
+use crate::timer::TimeValue;
 
 pub(super) static ROOT_TASK: LazyInit<Arc<Task>> = LazyInit::new();
 
@@ -38,6 +38,7 @@ pub struct Task {
     state: AtomicU8,
     entry: EntryState,
     exit_code: AtomicI32,
+    need_resched: AtomicBool,
 
     kstack: Stack<KERNEL_STACK_SIZE>,
     ctx: TaskLockedCell<TaskContext>,
@@ -87,6 +88,7 @@ impl Task {
             state: AtomicU8::new(TaskState::Ready as u8),
             entry: EntryState::Kernel { pc: 0, arg: 0 },
             exit_code: AtomicI32::new(0),
+            need_resched: AtomicBool::new(false),
 
             kstack: Stack::default(),
             ctx: TaskLockedCell::new(TaskContext::default()),
@@ -217,6 +219,10 @@ impl Task {
         self.exit_code.store(exit_code, Ordering::SeqCst)
     }
 
+    pub fn need_resched(&self) -> bool {
+        self.need_resched.load(Ordering::SeqCst)
+    }
+
     pub(super) const fn context(&self) -> &TaskLockedCell<TaskContext> {
         &self.ctx
     }
@@ -255,6 +261,14 @@ impl<'a> CurrentTask<'a> {
 
     pub fn clone_task(&self) -> Arc<Task> {
         self.0.clone()
+    }
+
+    pub fn clear_need_resched(&self) {
+        self.0.need_resched.store(false, Ordering::SeqCst);
+    }
+
+    pub fn set_need_resched(&self) {
+        self.0.need_resched.store(true, Ordering::SeqCst);
     }
 
     pub fn yield_now(&self) {

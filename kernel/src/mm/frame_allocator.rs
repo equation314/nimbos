@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use super::{address::virt_to_phys, PhysAddr, PAGE_SIZE};
 use crate::config::PHYS_MEMORY_END;
 use crate::sync::SpinNoIrqLock;
-use crate::utils::FreeListAllocator;
+use crate::utils::allocator::FreeListAllocator;
 
 static FRAME_ALLOCATOR: SpinNoIrqLock<FreeListAllocator> =
     SpinNoIrqLock::new(FreeListAllocator::empty());

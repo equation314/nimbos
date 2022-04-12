@@ -48,7 +48,7 @@ pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>) -> isize {
 }
 
 pub fn sys_nanosleep(req: UserInPtr<TimeSpec>) -> isize {
-    let deadline = crate::drivers::timer::current_time() + req.read().into();
+    let deadline = crate::timer::current_time() + req.read().into();
     current().sleep(deadline);
     0
 }

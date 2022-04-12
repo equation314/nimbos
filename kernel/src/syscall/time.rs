@@ -1,6 +1,5 @@
-use crate::drivers::timer::current_time;
 use crate::mm::UserOutPtr;
-use crate::structs::TimeValue;
+use crate::timer::{current_time, TimeValue};
 
 #[repr(C)]
 pub struct TimeSpec {
