@@ -1,19 +1,25 @@
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
-use super::schedule::{Scheduler, SimpleScheduler};
+use super::schedule::{Scheduler, SchedulerTrait};
 use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
 use crate::percpu::PerCpu;
 use crate::sync::{LazyInit, SpinNoIrqLock};
 use crate::timer::{current_time, TimeValue};
 
-pub struct TaskManager<S: Scheduler> {
-    scheduler: S,
+pub struct TaskManager {
+    scheduler: Scheduler,
 }
 
-impl<S: Scheduler> TaskManager<S> {
-    fn new(scheduler: S) -> Self {
-        Self { scheduler }
+impl TaskManager {
+    fn new() -> Self {
+        Self {
+            scheduler: Scheduler::new(),
+        }
+    }
+
+    pub fn scheduler_timer_tick(&mut self) {
+        self.scheduler.timer_tick();
     }
 
     pub fn spawn(&mut self, t: Arc<Task>) {
@@ -162,9 +168,8 @@ impl<T> TaskLockedCell<T> {
     }
 }
 
-pub(super) static TASK_MANAGER: LazyInit<SpinNoIrqLock<TaskManager<SimpleScheduler>>> =
-    LazyInit::new();
+pub(super) static TASK_MANAGER: LazyInit<SpinNoIrqLock<TaskManager>> = LazyInit::new();
 
 pub(super) fn init() {
-    TASK_MANAGER.init_by(SpinNoIrqLock::new(TaskManager::new(SimpleScheduler::new())));
+    TASK_MANAGER.init_by(SpinNoIrqLock::new(TaskManager::new()));
 }

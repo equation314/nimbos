@@ -3,6 +3,7 @@ use alloc::{boxed::Box, vec::Vec};
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicUsize, Ordering};
 
 use super::manager::{TaskLockedCell, TASK_MANAGER};
+use super::schedule::SchedulerState;
 use crate::arch::{instructions, TaskContext, TrapFrame};
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
@@ -35,10 +36,12 @@ pub struct Task {
     id: TaskId,
     is_kernel: bool,
     is_shared: bool,
-    state: AtomicU8,
     entry: EntryState,
+
+    state: AtomicU8,
     exit_code: AtomicI32,
     need_resched: AtomicBool,
+    sched_state: SchedulerState,
 
     kstack: Stack<KERNEL_STACK_SIZE>,
     ctx: TaskLockedCell<TaskContext>,
@@ -85,10 +88,12 @@ impl Task {
             id,
             is_kernel: false,
             is_shared: false,
-            state: AtomicU8::new(TaskState::Ready as u8),
             entry: EntryState::Kernel { pc: 0, arg: 0 },
+
+            state: AtomicU8::new(TaskState::Ready as u8),
             exit_code: AtomicI32::new(0),
             need_resched: AtomicBool::new(false),
+            sched_state: SchedulerState::default(),
 
             kstack: Stack::default(),
             ctx: TaskLockedCell::new(TaskContext::default()),
@@ -225,6 +230,10 @@ impl Task {
 
     pub(super) const fn context(&self) -> &TaskLockedCell<TaskContext> {
         &self.ctx
+    }
+
+    pub(super) const fn sched_state(&self) -> &SchedulerState {
+        &self.sched_state
     }
 
     pub(super) fn traverse(self: &Arc<Self>, func: &impl Fn(&Arc<Task>)) {

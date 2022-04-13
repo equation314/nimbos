@@ -69,7 +69,7 @@ pub fn handle_irq(vector: usize) {
 }
 
 pub fn timer_tick_periodic() {
-    current().set_need_resched(); // TODO: RR schedule
+    TASK_MANAGER.lock().scheduler_timer_tick();
 }
 
 pub fn spawn_task(task: Arc<Task>) {
@@ -79,6 +79,8 @@ pub fn spawn_task(task: Arc<Task>) {
 pub fn run() -> ! {
     println!("Running tasks...");
     instructions::enable_irqs();
-    current().yield_now(); // current task is idle at this time
-    unreachable!("root task exit!");
+    loop {
+        current().yield_now(); // current task is idle at this time
+        instructions::wait_for_ints();
+    }
 }
