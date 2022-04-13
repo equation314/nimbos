@@ -29,10 +29,11 @@ pub fn current_time() -> TimeValue {
     TimeValue::from_nanos(current_time_nanos())
 }
 
-pub fn set_next_trigger(deadline_ns: u64) {
-    let now_ns = current_time_nanos();
-    if now_ns < deadline_ns {
-        let interval = nanos_to_ticks(deadline_ns - now_ns);
+pub fn set_oneshot_timer(deadline_ns: u64) {
+    let cnptct = CNTPCT_EL0.get();
+    let cnptct_deadline = nanos_to_ticks(deadline_ns);
+    if cnptct < cnptct_deadline {
+        let interval = cnptct_deadline - cnptct;
         debug_assert!(interval <= u32::MAX as u64);
         CNTP_TVAL_EL0.set(interval);
     } else {

@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{exit, fork, get_time, getpid, sched_yield, wait};
+use user_lib::{exit, fork, get_time_us, getpid, sched_yield, wait};
 
 static NUM: usize = 30;
 const N: usize = 10;
@@ -50,7 +50,7 @@ pub fn main() -> i32 {
     for _ in 0..NUM {
         let pid = fork();
         if pid == 0 {
-            let current_time = get_time();
+            let current_time = get_time_us();
             let times = (current_time as i32 as isize) * (current_time as i32 as isize) % 1000;
             work(times * 10);
         }

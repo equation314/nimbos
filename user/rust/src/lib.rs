@@ -10,14 +10,9 @@ pub mod console;
 mod arch;
 mod lang_items;
 mod syscall;
+mod time;
 
-#[repr(C)]
-pub struct TimeSpec {
-    /// seconds
-    pub sec: usize,
-    /// nano seconds
-    pub nsec: usize,
-}
+pub use time::*;
 
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -49,10 +44,6 @@ pub fn sched_yield() -> isize {
     sys_yield()
 }
 
-pub fn get_time() -> isize {
-    sys_get_time()
-}
-
 pub fn getpid() -> isize {
     sys_getpid()
 }
@@ -67,7 +58,7 @@ pub fn exec(path: &str) -> isize {
 
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(-1, exit_code as *mut _) {
+        match sys_waitpid(-1, exit_code) {
             -2 => {
                 sched_yield();
             }
@@ -79,7 +70,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(pid as isize, exit_code as *mut _) {
+        match sys_waitpid(pid as isize, exit_code) {
             -2 => {
                 sched_yield();
             }
@@ -87,13 +78,6 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
             exit_pid => return exit_pid,
         }
     }
-}
-
-pub fn sleep(period_ms: usize) {
-    sys_nanosleep(&TimeSpec {
-        sec: period_ms / 1000,
-        nsec: (period_ms % 1000) * 1_000_000,
-    });
 }
 
 pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> usize {

@@ -1,4 +1,3 @@
-use super::time::TimeSpec;
 use crate::arch::TrapFrame;
 use crate::mm::{UserInPtr, UserOutPtr};
 use crate::task::{current, spawn_task};
@@ -45,10 +44,4 @@ pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>) -> isize {
     let ret = current().waitpid(pid, &mut exit_code);
     exit_code_ptr.write(exit_code);
     ret
-}
-
-pub fn sys_nanosleep(req: UserInPtr<TimeSpec>) -> isize {
-    let deadline = crate::timer::current_time() + req.read().into();
-    current().sleep(deadline);
-    0
 }

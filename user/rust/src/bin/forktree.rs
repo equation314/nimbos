@@ -32,7 +32,7 @@ fn fork_tree(cur: &str) {
 #[no_mangle]
 pub fn main() -> i32 {
     fork_tree("");
-    sleep(3000);
+    sleep(3);
     println!("forktree passed!");
     0
 }

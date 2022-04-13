@@ -4,19 +4,19 @@
 #[macro_use]
 extern crate user_lib;
 
-use user_lib::{get_time, sleep};
+use user_lib::{get_time_us, sleep};
 
 #[no_mangle]
 pub fn main() -> i32 {
     println!("into sleep test!");
-    let start = get_time();
-    println!("current time_msec = {}", start);
-    sleep(1000);
-    let end = get_time();
+    let start = get_time_us();
+    println!("current time_usec = {}", start);
+    sleep(1);
+    let end = get_time_us();
     println!(
-        "time_msec = {} after sleeping 1000ms, delta = {}ms!",
+        "time_msec = {} after sleeping 1 seconds, delta = {}us!",
         end,
-        end - start
+        end - start - 1_000_000,
     );
     println!("simple_sleep passed!");
     0

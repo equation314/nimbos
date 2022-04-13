@@ -23,7 +23,7 @@ pub fn current_time() -> TimeValue {
     TimeValue::from_nanos(current_time_nanos())
 }
 
-pub fn set_next_trigger(deadline_ns: u64) {
+pub fn set_oneshot_timer(deadline_ns: u64) {
     unsafe {
         let now_ns = current_time_nanos();
         if now_ns < deadline_ns {

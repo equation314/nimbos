@@ -19,6 +19,8 @@ struct timespec {
 
 #define TIMER_ABSTIME 1
 
+int clock_nanosleep(clockid_t clk, int flags, const struct timespec *req,
+                    struct timespec *rem);
 int nanosleep(const struct timespec *req, struct timespec *rem);
 int clock_gettime(clockid_t clk, struct timespec *ts);
 int gettimeofday(struct timeval *tv, void *tz);

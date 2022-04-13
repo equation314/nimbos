@@ -9,4 +9,4 @@ cfg_if! {
 }
 
 pub(super) use self::imp::init;
-pub use self::imp::{current_time, current_time_nanos, set_next_trigger};
+pub use self::imp::{current_time, current_time_nanos, set_oneshot_timer};

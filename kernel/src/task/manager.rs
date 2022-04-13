@@ -5,7 +5,7 @@ use super::schedule::{Scheduler, SimpleScheduler};
 use super::structs::{CurrentTask, Task, TaskState, ROOT_TASK};
 use crate::percpu::PerCpu;
 use crate::sync::{LazyInit, SpinNoIrqLock};
-use crate::timer::TimeValue;
+use crate::timer::{current_time, TimeValue};
 
 pub struct TaskManager<S: Scheduler> {
     scheduler: S,
@@ -22,6 +22,11 @@ impl<S: Scheduler> TaskManager<S> {
     }
 
     fn switch_to(&self, curr_task: &Arc<Task>, next_task: Arc<Task>) {
+        trace!(
+            "context switch: {:?} -> {:?}",
+            curr_task.pid(),
+            next_task.pid()
+        );
         next_task.set_state(TaskState::Running);
         if Arc::ptr_eq(curr_task, &next_task) {
             return;
@@ -69,13 +74,15 @@ impl<S: Scheduler> TaskManager<S> {
     pub fn sleep_current(&mut self, curr_task: &CurrentTask, deadline: TimeValue) {
         assert!(curr_task.state() == TaskState::Running);
         assert!(!curr_task.is_idle());
-        curr_task.set_state(TaskState::Sleeping);
-        let curr_task_clone = curr_task.clone_task();
-        crate::timer::set_timer(deadline, |_| {
-            TASK_MANAGER.lock().wakeup(curr_task_clone);
-            CurrentTask::get().set_need_resched();
-        });
-        self.resched(curr_task);
+        if current_time() < deadline {
+            curr_task.set_state(TaskState::Sleeping);
+            let curr_task_clone = curr_task.clone_task();
+            crate::timer::set_timer(deadline, |_| {
+                TASK_MANAGER.lock().wakeup(curr_task_clone);
+                CurrentTask::get().set_need_resched();
+            });
+            self.resched(curr_task);
+        }
     }
 
     pub fn exit_current(&mut self, curr_task: &CurrentTask, exit_code: i32) -> ! {

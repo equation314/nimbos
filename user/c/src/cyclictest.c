@@ -22,6 +22,9 @@ musl-gcc cyclictest.c -lpthread -DUSE_MUSL
 #include <time.h>
 #include <unistd.h>
 
+#define TIMER_RELTIME 0
+#define TIMER_ABSTIME 1
+
 /*
  * number of timerthreads
  */
@@ -34,7 +37,8 @@ musl-gcc cyclictest.c -lpthread -DUSE_MUSL
 #define USEC_PER_SEC        1000000
 #define NSEC_PER_SEC        1000000000
 #define DEFAULT_CLOCK       CLOCK_MONOTONIC
-#define MAX_CYCLES          50000
+#define DEFAULT_TIMER_MODE  TIMER_ABSTIME
+#define MAX_CYCLES          30000
 #define PRINT_FREQ          500 // 500ms
 
 struct thread_param {
@@ -94,25 +98,37 @@ static void *timerthread(void* param)
     int err;
     struct thread_param* par = param;
     struct thread_stat* stat = &thrstat[par->id];
-    struct timespec now, saved, interval;
+    struct timespec now, next, interval;
 
     stat->tid = getpid();
     interval.tv_sec = par->interval / USEC_PER_SEC;
     interval.tv_nsec = (par->interval % USEC_PER_SEC) * 1000;
 
+    err = clock_gettime(DEFAULT_CLOCK, &now);
+    assert(!err && "clock_gettime() failed");
+    next = now;
+    tsinc(&next, &interval);
+
     while (!shutdown) {
-        err = clock_gettime(DEFAULT_CLOCK, &saved);
-        assert(!err && "clock_gettime() failed");
-
-        err = nanosleep(&interval, NULL);
-        assert(!err && "nanosleep failed");
-
+        switch (DEFAULT_TIMER_MODE) {
+        case TIMER_ABSTIME:
+            err = clock_nanosleep(DEFAULT_CLOCK, TIMER_ABSTIME, &next, NULL);
+            assert(!err && "clock_nanosleep failed");
+            break;
+        default:
+            err = clock_gettime(DEFAULT_CLOCK, &now);
+            assert(!err && "clock_gettime() failed");
+            err = clock_nanosleep(DEFAULT_CLOCK, TIMER_RELTIME, &interval, NULL);
+            assert(!err && "clock_nanosleep failed");
+            next.tv_sec = now.tv_sec + interval.tv_sec;
+            next.tv_nsec = now.tv_nsec + interval.tv_nsec;
+            tsnorm(&next);
+            break;
+        }
         err = clock_gettime(DEFAULT_CLOCK, &now);
         assert(!err && "clock_gettime() failed");
 
-        tsinc(&saved, &interval);
-        long diff = tsdelta(&now, &saved);
-
+        long diff = tsdelta(&now, &next);
         // printf("%ld\n", diff);
 
         if (diff < stat->min)
@@ -122,6 +138,10 @@ static void *timerthread(void* param)
         stat->act = diff;
         stat->sum += diff;
         stat->cycles++;
+
+		tsinc(&next, &interval);
+		while (tsgreater(&now, &next))
+			tsinc(&next, &interval);
     }
 
     return NULL;

@@ -14,6 +14,7 @@ int execve(const char *path);
 int wait(int *exitcode);
 int waitpid(pid_t pid, int *exitcode);
 
-void usleep(unsigned useconds);
+int usleep(unsigned useconds);
+unsigned sleep(unsigned seconds);
 
 #endif // __UNISTD_H__
