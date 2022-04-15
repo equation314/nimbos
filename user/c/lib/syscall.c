@@ -38,19 +38,12 @@ int execve(const char *path)
     return syscall(SYS_exec, path);
 }
 
-int waitpid(pid_t pid, int *exit_code)
+pid_t waitpid(pid_t pid, int *exit_code, int options)
 {
-    for (;;) {
-        int ret = syscall(SYS_waitpid, pid, exit_code);
-        if (ret == -2) {
-            sched_yield();
-        } else {
-            return ret;
-        }
-    }
+    return syscall(SYS_waitpid, pid, exit_code, options);
 }
 
-int wait(int *exit_code)
+pid_t wait(int *exit_code)
 {
-    return waitpid(-1, exit_code);
+    return waitpid(-1, exit_code, 0);
 }

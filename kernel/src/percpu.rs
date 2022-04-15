@@ -30,7 +30,11 @@ impl PerCpu {
     }
 
     fn current<'a>() -> &'a Self {
-        unsafe { &*(instructions::thread_pointer() as *const Self) }
+        Self::current_mut()
+    }
+
+    fn current_mut<'a>() -> &'a mut Self {
+        unsafe { &mut *(instructions::thread_pointer() as *mut Self) }
     }
 
     pub fn current_cpu_id() -> usize {
@@ -64,11 +68,16 @@ impl PerCpu {
 #[allow(dead_code)]
 pub const PERCPU_ARCH_OFFSET: usize = memoffset::offset_of!(PerCpu, arch);
 
-pub fn init_percpu() {
+pub fn init_percpu_early() {
     let cpu_id = 0;
     CPUS[cpu_id].init_by(PerCpu::new(cpu_id));
     unsafe {
         instructions::set_thread_pointer(CPUS[cpu_id].self_vaddr);
         PerCpu::current_arch_data().as_mut().init(cpu_id);
     }
+}
+
+pub fn init_percpu() {
+    let idle_task = unsafe { Arc::get_mut_unchecked(&mut PerCpu::current_mut().idle_task) };
+    idle_task.init_idle();
 }

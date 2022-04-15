@@ -21,9 +21,11 @@ pub fn main() -> i32 {
         println!("I am the parent, fork a child pid {}", pid);
     }
     println!("I am the parent, waiting now..");
-    let mut xstate: i32 = 0;
-    assert!(waitpid(pid as usize, &mut xstate) == pid && xstate == MAGIC);
-    assert!(waitpid(pid as usize, &mut xstate) < 0 && wait(&mut xstate) <= 0);
+    let mut xstate = 0;
+    assert!(waitpid(pid, Some(&mut xstate), 0) == pid);
+    assert!(xstate == MAGIC);
+    assert!(waitpid(pid, None, 0) < 0);
+    assert!(wait(None) <= 0);
     println!("waitpid {} ok.", pid);
     println!("exit passed!");
     0

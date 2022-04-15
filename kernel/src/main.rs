@@ -5,6 +5,7 @@
 #![feature(const_ptr_offset_from, const_refs_to_cell)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(const_maybe_uninit_zeroed)]
+#![feature(get_mut_unchecked)]
 
 extern crate alloc;
 #[macro_use]
@@ -78,11 +79,12 @@ pub fn rust_main() -> ! {
     info!("Logging is enabled.");
 
     arch::init();
-    percpu::init_percpu();
+    percpu::init_percpu_early();
 
     mm::init();
     drivers::init();
 
+    percpu::init_percpu();
     timer::init();
     task::init();
     loader::list_apps();

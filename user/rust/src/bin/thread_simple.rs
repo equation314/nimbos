@@ -39,9 +39,9 @@ pub fn main() -> i32 {
     let t0 = thread_spawn(test_user_thread, 0xdead);
     let t1 = thread_spawn(test_user_thread, 0xbeef);
     let mut exit_code = 0;
-    waitpid(t0, &mut exit_code);
+    waitpid(t0, Some(&mut exit_code), 0);
     println!("thread {} exited with {}.", t0, exit_code);
-    waitpid(t1, &mut exit_code);
+    waitpid(t1, Some(&mut exit_code), 0);
     println!("thread {} exited with {}.", t1, exit_code);
     println!("main thread exited.");
     0

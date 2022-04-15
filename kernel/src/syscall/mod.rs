@@ -41,7 +41,7 @@ pub fn syscall(
         SYSCALL_FORK => sys_fork(tf),
         SYSCALL_EXEC => sys_exec(arg0.into(), tf),
         SYSCALL_EXIT => sys_exit(arg0 as i32),
-        SYSCALL_WAITPID => sys_waitpid(arg0 as isize, arg1.into()),
+        SYSCALL_WAITPID => sys_waitpid(arg0 as _, arg1.into(), arg2 as _),
         SYSCALL_GET_TIME_MS => sys_get_time_ms(),
         SYSCALL_CLOCK_GETTIME => sys_clock_gettime(arg0 as _, arg1.into()),
         SYSCALL_CLOCK_NANOSLEEP => sys_clock_nanosleep(arg0 as _, arg1 as _, arg2.into()),

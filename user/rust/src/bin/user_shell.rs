@@ -31,14 +31,14 @@ pub fn main() -> i32 {
                     if pid == 0 {
                         // child process
                         let path = core::str::from_utf8(&line[..cursor]).unwrap();
-                        if exec(path) == -1 {
+                        if exec(path) < 0 {
                             println!("command not found: {:?}", path);
                             return -4;
                         }
                         unreachable!();
                     } else {
-                        let mut exit_code: i32 = 0;
-                        let exit_pid = waitpid(pid as usize, &mut exit_code);
+                        let mut exit_code = 0;
+                        let exit_pid = waitpid(pid, Some(&mut exit_code), 0);
                         assert_eq!(pid, exit_pid);
                         println!("Shell: Process {} exited with code {}", pid, exit_code);
                     }

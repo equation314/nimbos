@@ -56,31 +56,16 @@ pub fn exec(path: &str) -> isize {
     sys_exec(path)
 }
 
-pub fn wait(exit_code: &mut i32) -> isize {
-    loop {
-        match sys_waitpid(-1, exit_code) {
-            -2 => {
-                sched_yield();
-            }
-            // -1 or a real pid
-            exit_pid => return exit_pid,
-        }
-    }
+pub fn waitpid(pid: isize, exit_code: Option<&mut i32>, options: u32) -> isize {
+    let exit_code_ptr = exit_code.map(|e| e as _).unwrap_or(core::ptr::null_mut());
+    sys_waitpid(pid, exit_code_ptr, options)
 }
 
-pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
-    loop {
-        match sys_waitpid(pid as isize, exit_code) {
-            -2 => {
-                sched_yield();
-            }
-            // -1 or a real pid
-            exit_pid => return exit_pid,
-        }
-    }
+pub fn wait(exit_code: Option<&mut i32>) -> isize {
+    waitpid(-1, exit_code, 0)
 }
 
-pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> usize {
+pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> isize {
     use core::sync::atomic::{AtomicUsize, Ordering};
     const MAX_THREADS: usize = 16;
     const THREAD_STACK_SIZE: usize = 4096 * 4; // 16K

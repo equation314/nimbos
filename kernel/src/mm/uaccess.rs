@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![allow(clippy::uninit_assumed_init)]
 
-use core::marker::PhantomData;
 use core::mem::{align_of, size_of, MaybeUninit};
+use core::{fmt, marker::PhantomData};
 
 use crate::config::{USER_ASPACE_BASE, USER_ASPACE_SIZE};
 
@@ -65,9 +65,14 @@ pub struct UserPtr<T, P: Policy> {
     _phantom: PhantomData<P>,
 }
 
+impl<T, P: Policy> fmt::Debug for UserPtr<T, P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "UserPtr({:?})", self.ptr)
+    }
+}
+
 impl<T, P: Policy> From<usize> for UserPtr<T, P> {
     fn from(user_vadddr: usize) -> Self {
-        assert!(uaccess_ok(user_vadddr, 1));
         assert!(user_vadddr % align_of::<T>() == 0);
         Self {
             ptr: user_vadddr as *mut T,
@@ -77,6 +82,10 @@ impl<T, P: Policy> From<usize> for UserPtr<T, P> {
 }
 
 impl<T, P: Policy> UserPtr<T, P> {
+    pub fn is_null(&self) -> bool {
+        self.ptr.is_null()
+    }
+
     pub fn as_ptr(&self) -> *const T {
         self.ptr
     }

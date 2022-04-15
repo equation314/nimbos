@@ -19,11 +19,11 @@ fn sleepy() {
 pub fn main() -> i32 {
     let current_time = get_time_us();
     let pid = fork();
-    let mut exit_code: i32 = 0;
+    let mut exit_code = 0;
     if pid == 0 {
         sleepy();
     }
-    assert!(waitpid(pid as usize, &mut exit_code) == pid && exit_code == 0);
+    assert!(waitpid(pid, Some(&mut exit_code), 0) == pid && exit_code == 0);
     println!("use {} usecs.", get_time_us() - current_time);
     println!("sleep passed!");
     0

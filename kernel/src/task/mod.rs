@@ -1,6 +1,7 @@
 mod manager;
 mod schedule;
 mod structs;
+mod wait_queue;
 
 pub use structs::{CurrentTask, Task, TaskId};
 
@@ -24,15 +25,10 @@ pub fn init() {
     ROOT_TASK.init_by(Task::new_kernel(
         |_| loop {
             let curr_task = current();
-            let mut exit_code = 0;
-            while curr_task.waitpid(-1, &mut exit_code) > 0 {}
-            if curr_task.children.lock().len() == 0 {
-                // instructions::wait_for_ints();
-                info!("No more tasks to run, shutdown!");
-                crate::drivers::misc::shutdown();
-            } else {
-                curr_task.yield_now();
-            }
+            while curr_task.waitpid(-1, 0).is_some() {}
+            // instructions::wait_for_ints();
+            info!("No more tasks to run, shutdown!");
+            crate::drivers::misc::shutdown();
         },
         0,
     ));
@@ -79,8 +75,9 @@ pub fn spawn_task(task: Arc<Task>) {
 pub fn run() -> ! {
     println!("Running tasks...");
     instructions::enable_irqs();
+    current().yield_now(); // current task is idle at this time
     loop {
-        current().yield_now(); // current task is idle at this time
-        instructions::wait_for_ints();
+        current().yield_now();
+        // instructions::wait_for_ints(); // the `HLT` instruction has poor performance
     }
 }

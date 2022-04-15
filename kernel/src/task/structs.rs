@@ -4,6 +4,7 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicUsize, Ordering}
 
 use super::manager::{TaskLockedCell, TASK_MANAGER};
 use super::schedule::SchedulerState;
+use super::wait_queue::WaitCurrent;
 use crate::arch::{instructions, TaskContext, TrapFrame};
 use crate::config::KERNEL_STACK_SIZE;
 use crate::loader;
@@ -45,6 +46,8 @@ pub struct Task {
 
     kstack: Stack<KERNEL_STACK_SIZE>,
     ctx: TaskLockedCell<TaskContext>,
+
+    pub(super) wait_children_exit: WaitCurrent,
 
     vm: Option<Arc<Mutex<MemorySet>>>,
     pub(super) parent: Mutex<Weak<Task>>,
@@ -98,6 +101,8 @@ impl Task {
             kstack: Stack::default(),
             ctx: TaskLockedCell::new(TaskContext::default()),
 
+            wait_children_exit: WaitCurrent::new(),
+
             vm: None,
             parent: Mutex::new(Weak::default()),
             children: Mutex::new(Vec::new()),
@@ -112,8 +117,17 @@ impl Task {
     pub fn new_idle() -> Arc<Self> {
         let mut t = Self::new_common(TaskId::IDLE_TASK_ID);
         t.is_kernel = true;
-        t.set_state(TaskState::Running);
         Arc::new(t)
+    }
+
+    pub fn init_idle(&mut self) {
+        self.set_state(TaskState::Running);
+        self.ctx.get_mut().init(
+            0,
+            self.kstack.top(),
+            kernel_aspace().page_table_root(),
+            true,
+        );
     }
 
     pub fn new_kernel(entry: fn(usize) -> usize, arg: usize) -> Arc<Self> {
@@ -244,6 +258,12 @@ impl Task {
     }
 }
 
+impl Drop for Task {
+    fn drop(&mut self) {
+        debug!("Task({}) dropped", self.pid().as_usize());
+    }
+}
+
 fn task_entry() -> ! {
     // release the lock that was implicitly held across the reschedule
     unsafe { TASK_MANAGER.force_unlock() };
@@ -313,24 +333,32 @@ impl<'a> CurrentTask<'a> {
         }
     }
 
-    pub fn waitpid(&self, pid: isize, exit_code: &mut i32) -> isize {
-        let mut children = self.children.lock();
+    pub fn waitpid(&self, pid: isize, _options: u32) -> Option<(TaskId, i32)> {
         let mut found_pid = false;
-        for (idx, t) in children.iter().enumerate() {
+        for t in self.children.lock().iter() {
             if pid == -1 || t.pid().as_usize() == pid as usize {
                 found_pid = true;
-                if t.state() == TaskState::Zombie {
-                    let child = children.remove(idx);
-                    assert_eq!(Arc::strong_count(&child), 1);
-                    *exit_code = child.exit_code();
-                    return child.pid().as_usize() as isize;
-                }
+                break;
             }
         }
-        if found_pid {
-            -2
-        } else {
-            -1
+        if !found_pid {
+            return None;
+        }
+
+        loop {
+            {
+                let mut children = self.children.lock();
+                for (idx, t) in children.iter().enumerate() {
+                    if (pid == -1 || t.pid().as_usize() == pid as usize)
+                        && t.state() == TaskState::Zombie
+                    {
+                        let child = children.remove(idx);
+                        assert_eq!(Arc::strong_count(&child), 1);
+                        return Some((child.pid(), child.exit_code()));
+                    }
+                }
+            }
+            self.wait_children_exit.wait();
         }
     }
 }

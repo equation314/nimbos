@@ -37,11 +37,13 @@ pub fn sys_exec(path: UserInPtr<u8>, tf: &mut TrapFrame) -> isize {
     current().exec(path, tf)
 }
 
-/// If there is no child process has the same pid as the given, return -1.
-/// Else if there is a child process but it is still running, return -2.
-pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>) -> isize {
-    let mut exit_code = 0;
-    let ret = current().waitpid(pid, &mut exit_code);
-    exit_code_ptr.write(exit_code);
-    ret
+pub fn sys_waitpid(pid: isize, mut exit_code_ptr: UserOutPtr<i32>, options: u32) -> isize {
+    if let Some((pid, exit_code)) = current().waitpid(pid, options) {
+        if !exit_code_ptr.is_null() {
+            exit_code_ptr.write(exit_code);
+        }
+        pid.as_usize() as _
+    } else {
+        -1
+    }
 }

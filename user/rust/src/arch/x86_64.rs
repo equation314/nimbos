@@ -20,7 +20,7 @@ pub fn syscall(id: usize, args: [usize; 3]) -> isize {
 
 #[naked]
 #[allow(improper_ctypes_definitions)]
-pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize) -> usize {
+pub extern "C" fn sys_clone(_entry: fn(usize) -> i32, _arg: usize, _newsp: usize) -> isize {
     // sys_clone(entry, arg, newsp)
     //             rdi, rsi,   rdx
     // syscall(SYSCALL_CLONE, newsp)

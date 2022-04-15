@@ -16,6 +16,8 @@ static TESTS: &[&str] = &[
     "sleep_simple\0",
     "stack_overflow\0",
     "yield\0",
+    "thread_simple\0",
+    "cyclictest\0",
 ];
 
 use user_lib::{exec, fork, waitpid};
@@ -32,8 +34,8 @@ pub fn main() -> i32 {
                 panic!("unreachable!");
             }
         } else {
-            let mut exit_code: i32 = 0;
-            let wait_pid = waitpid(pid as usize, &mut exit_code);
+            let mut exit_code = 0;
+            let wait_pid = waitpid(pid, Some(&mut exit_code), 0);
             assert_eq!(pid, wait_pid);
             let color = if exit_code == 0 { 32 } else { 31 };
             println!(

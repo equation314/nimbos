@@ -62,12 +62,6 @@ impl TaskManager {
         }
     }
 
-    fn wakeup(&mut self, task: Arc<Task>) {
-        assert!(task.state() == TaskState::Sleeping);
-        task.set_state(TaskState::Ready);
-        self.scheduler.push_ready_task_front(task);
-    }
-
     pub fn yield_current(&mut self, curr_task: &CurrentTask) {
         assert!(curr_task.state() == TaskState::Running);
         curr_task.set_state(TaskState::Ready);
@@ -77,17 +71,34 @@ impl TaskManager {
         self.resched(curr_task);
     }
 
+    pub fn unblock_task(&mut self, task: Arc<Task>) -> bool {
+        if task.state() == TaskState::Sleeping {
+            task.set_state(TaskState::Ready);
+            self.scheduler.push_ready_task_front(task);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn block_current(&mut self, curr_task: &CurrentTask) {
+        // assert not in spin lock
+        assert!(curr_task.state() == TaskState::Running);
+        assert!(!curr_task.is_idle());
+        curr_task.set_state(TaskState::Sleeping);
+        self.resched(curr_task);
+    }
+
     pub fn sleep_current(&mut self, curr_task: &CurrentTask, deadline: TimeValue) {
         assert!(curr_task.state() == TaskState::Running);
         assert!(!curr_task.is_idle());
         if current_time() < deadline {
-            curr_task.set_state(TaskState::Sleeping);
             let curr_task_clone = curr_task.clone_task();
-            crate::timer::set_timer(deadline, |_| {
-                TASK_MANAGER.lock().wakeup(curr_task_clone);
+            crate::timer::set_timer(deadline, move |_| {
+                TASK_MANAGER.lock().unblock_task(curr_task_clone);
                 CurrentTask::get().set_need_resched();
             });
-            self.resched(curr_task);
+            self.block_current(curr_task);
         }
     }
 
@@ -96,17 +107,32 @@ impl TaskManager {
         assert!(!curr_task.is_root());
         assert!(curr_task.state() == TaskState::Running);
 
-        curr_task.set_state(TaskState::Zombie);
-        curr_task.set_exit_code(exit_code);
-
         // Make all child tasks as the children of the root task
         {
+            let mut notify = false;
             let mut children = curr_task.children.lock();
             for c in children.iter() {
                 ROOT_TASK.add_child(c);
+                if c.state() == TaskState::Zombie {
+                    notify = true;
+                }
             }
             children.clear();
+            if notify {
+                ROOT_TASK.wait_children_exit.notify_locked(self);
+            }
         }
+
+        curr_task.set_state(TaskState::Zombie);
+        curr_task.set_exit_code(exit_code);
+
+        curr_task
+            .parent
+            .lock()
+            .upgrade()
+            .unwrap()
+            .wait_children_exit
+            .notify_locked(self);
 
         self.resched(curr_task);
         unreachable!("task exited!");

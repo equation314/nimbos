@@ -11,8 +11,8 @@ int sched_yield(void);
 
 pid_t fork(void);
 int execve(const char *path);
-int wait(int *exitcode);
-int waitpid(pid_t pid, int *exitcode);
+pid_t wait(int *exitcode);
+pid_t waitpid(pid_t pid, int *exitcode, int options);
 
 int usleep(unsigned useconds);
 unsigned sleep(unsigned seconds);
