@@ -11,4 +11,4 @@ cfg_if! {
 }
 
 pub(super) use self::imp::init;
-pub use self::imp::{current_ticks, frequency_hz, set_oneshot_timer};
+pub use self::imp::{current_ticks, nanos_to_ticks, set_oneshot_timer, ticks_to_nanos};

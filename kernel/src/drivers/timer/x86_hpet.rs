@@ -6,6 +6,8 @@ use tock_registers::registers::{ReadOnly, ReadWrite};
 
 use crate::mm::{PhysAddr, VirtAddr};
 use crate::sync::LazyInit;
+use crate::timer::NANOS_PER_SEC;
+use crate::utils::ratio::Ratio;
 
 const HPET_BASE: PhysAddr = PhysAddr::new(0xFED0_0000);
 
@@ -67,7 +69,8 @@ struct Hpet {
     base_vaddr: VirtAddr,
     num_timers: u8,
     period_fs: u64,
-    freq_hz: u64,
+    nanos_to_ticks_ratio: Ratio,
+    ticks_to_nanos_ratio: Ratio,
     ticks_per_ms: u64,
     is_64bit: bool,
 }
@@ -78,7 +81,8 @@ impl Hpet {
             base_vaddr,
             num_timers: 0,
             period_fs: 0,
-            freq_hz: 0,
+            ticks_to_nanos_ratio: Ratio::zero(),
+            nanos_to_ticks_ratio: Ratio::zero(),
             ticks_per_ms: 0,
             is_64bit: false,
         }
@@ -113,7 +117,8 @@ impl Hpet {
 
         self.num_timers = num_timers;
         self.period_fs = period_fs;
-        self.freq_hz = freq_hz;
+        self.nanos_to_ticks_ratio = Ratio::new(freq_hz as u32, NANOS_PER_SEC as u32);
+        self.ticks_to_nanos_ratio = self.nanos_to_ticks_ratio.inverse();
         self.ticks_per_ms = freq_hz / 1000;
         self.is_64bit = is_64bit;
 
@@ -147,7 +152,7 @@ impl Hpet {
             unsafe { TimerConfCaps::from_bits_unchecked(timer_regs.conf_caps.get()) };
         assert!(conf_caps.contains(TimerConfCaps::TN_PER_INT_CAP));
 
-        let ticks = crate::timer::nanos_to_ticks(period_nanos, self.freq_hz);
+        let ticks = self.nanos_to_ticks_ratio.mul(period_nanos);
         conf_caps |= TimerConfCaps::TN_INT_ENB_CNF
             | TimerConfCaps::TN_TYPE_CNF
             | TimerConfCaps::TN_VAL_SET_CNF;
@@ -173,8 +178,13 @@ pub fn current_ticks() -> u64 {
 }
 
 #[allow(dead_code)]
-pub fn frequency_hz() -> u64 {
-    HPET.freq_hz
+pub fn ticks_to_nanos(ticks: u64) -> u64 {
+    HPET.ticks_to_nanos_ratio.mul(ticks)
+}
+
+#[allow(dead_code)]
+pub fn nanos_to_ticks(nanos: u64) -> u64 {
+    HPET.nanos_to_ticks_ratio.mul(nanos)
 }
 
 pub(super) fn wait_millis(millis: u64) {

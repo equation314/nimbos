@@ -1,12 +1,17 @@
+#![allow(dead_code)]
+
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::sync::{LazyInit, SpinNoIrqLock};
 use crate::utils::timer_list::TimerList;
 
-pub use crate::drivers::timer::{current_ticks, frequency_hz, set_oneshot_timer};
+pub use crate::drivers::timer::{current_ticks, nanos_to_ticks, set_oneshot_timer, ticks_to_nanos};
 pub use crate::utils::timer_list::TimeValue;
 
-const PERIODIC_INTERVAL_NS: u64 = 1_000_000_000 / crate::config::TICKS_PER_SEC;
+pub const NANOS_PER_SEC: u64 = 1_000_000_000;
+pub const MICROS_PER_SEC: u64 = 1_000_000;
+
+const PERIODIC_INTERVAL_NANOS: u64 = NANOS_PER_SEC / crate::config::TICKS_PER_SEC;
 
 static NEXT_DEADLINE: AtomicU64 = AtomicU64::new(0);
 static NEXT_PERIODIC_DEADLINE: AtomicU64 = AtomicU64::new(0);
@@ -18,18 +23,8 @@ fn update_deadline(deadline_ns: u64) {
     set_oneshot_timer(deadline_ns);
 }
 
-pub const fn ticks_to_nanos(ticks: u64, freq_hz: u64) -> u64 {
-    // FIXME: speedup
-    ((ticks as u128) * 1_000_000_000 / freq_hz as u128) as u64
-}
-
-pub const fn nanos_to_ticks(nanos: u64, freq_hz: u64) -> u64 {
-    // FIXME: speedup
-    (nanos as u128 * freq_hz as u128 / 1_000_000_000) as u64
-}
-
 pub fn current_time_nanos() -> u64 {
-    ticks_to_nanos(current_ticks(), frequency_hz())
+    ticks_to_nanos(current_ticks())
 }
 
 pub fn current_time() -> TimeValue {
@@ -38,7 +33,7 @@ pub fn current_time() -> TimeValue {
 
 pub fn init() {
     TIMER_LIST.init_by(SpinNoIrqLock::new(TimerList::new()));
-    let deadline = current_time_nanos() + PERIODIC_INTERVAL_NS;
+    let deadline = current_time_nanos() + PERIODIC_INTERVAL_NANOS;
     NEXT_PERIODIC_DEADLINE.store(deadline, Ordering::Release);
     update_deadline(deadline);
 }
@@ -59,7 +54,7 @@ pub fn handle_timer_irq() {
 
     if now_ns >= next_deadline {
         crate::task::timer_tick_periodic();
-        NEXT_PERIODIC_DEADLINE.fetch_add(PERIODIC_INTERVAL_NS, Ordering::Release);
+        NEXT_PERIODIC_DEADLINE.fetch_add(PERIODIC_INTERVAL_NANOS, Ordering::Release);
         next_deadline = NEXT_PERIODIC_DEADLINE.load(Ordering::Acquire);
     }
 

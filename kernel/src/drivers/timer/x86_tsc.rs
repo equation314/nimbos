@@ -1,15 +1,24 @@
 use raw_cpuid::CpuId;
 
+use super::x86_hpet;
 use crate::sync::LazyInit;
+use crate::timer::MICROS_PER_SEC;
+use crate::utils::ratio::Ratio;
 
-static TSC_FREQ_HZ: LazyInit<u64> = LazyInit::new();
+static TSC_TO_NANOS_RATIO: LazyInit<Ratio> = LazyInit::new();
+static NANOS_TO_TSC_RATIO: LazyInit<Ratio> = LazyInit::new();
 
 pub fn current_ticks() -> u64 {
     unsafe { core::arch::x86_64::_rdtsc() }
 }
 
-pub fn frequency_hz() -> u64 {
-    *TSC_FREQ_HZ
+pub fn ticks_to_nanos(ticks: u64) -> u64 {
+    TSC_TO_NANOS_RATIO.mul(ticks)
+}
+
+#[allow(dead_code)]
+pub fn nanos_to_ticks(nanos: u64) -> u64 {
+    NANOS_TO_TSC_RATIO.mul(nanos)
 }
 
 pub(super) fn calibrate_tsc() {
@@ -18,27 +27,34 @@ pub(super) fn calibrate_tsc() {
         .map(|info| info.processor_base_frequency())
     {
         if freq > 0 {
-            println!("Got TSC frequency by CPUID: {} MHz", freq,);
-            TSC_FREQ_HZ.init_by(freq as u64 * 1_000_000);
+            println!("Got TSC frequency by CPUID: {} MHz", freq);
+            TSC_TO_NANOS_RATIO.init_by(Ratio::new(1_000, freq as u32));
+            NANOS_TO_TSC_RATIO.init_by(TSC_TO_NANOS_RATIO.inverse());
             return;
         }
     }
 
-    let mut best_freq_hz = u64::MAX;
+    let mut best_freq_khz = u32::MAX;
     for _ in 0..5 {
-        let tsc_start = unsafe { core::arch::x86_64::_rdtsc() };
-        super::x86_hpet::wait_millis(10);
-        let tsc_end = unsafe { core::arch::x86_64::_rdtsc() };
-        let freq_hz = (tsc_end - tsc_start) * 100;
-        if freq_hz < best_freq_hz {
-            best_freq_hz = freq_hz;
+        let tsc_start = current_ticks();
+        let hpet_start = x86_hpet::current_ticks();
+        x86_hpet::wait_millis(10);
+        let tsc_end = current_ticks();
+        let hpet_end = x86_hpet::current_ticks();
+
+        let nanos = x86_hpet::ticks_to_nanos(hpet_end.wrapping_sub(hpet_start));
+        let freq_khz = ((tsc_end - tsc_start) * MICROS_PER_SEC / nanos) as u32;
+
+        if freq_khz < best_freq_khz {
+            best_freq_khz = freq_khz;
         }
     }
     println!(
         "Calibrated TSC frequency: {}.{:03} MHz",
-        best_freq_hz / 1_000_000,
-        best_freq_hz % 1_000_000 / 1_000,
+        best_freq_khz / 1_000,
+        best_freq_khz % 1_000,
     );
 
-    TSC_FREQ_HZ.init_by(best_freq_hz);
+    TSC_TO_NANOS_RATIO.init_by(Ratio::new(MICROS_PER_SEC as u32, best_freq_khz));
+    NANOS_TO_TSC_RATIO.init_by(TSC_TO_NANOS_RATIO.inverse());
 }
