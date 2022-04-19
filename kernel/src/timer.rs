@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use crate::sync::{LazyInit, SpinNoIrqLock};
 use crate::utils::timer_list::TimerList;
 
-pub use crate::drivers::timer::{current_time, current_time_nanos, set_oneshot_timer};
+pub use crate::drivers::timer::{current_ticks, frequency_hz, set_oneshot_timer};
 pub use crate::utils::timer_list::TimeValue;
 
 const PERIODIC_INTERVAL_NS: u64 = 1_000_000_000 / crate::config::TICKS_PER_SEC;
@@ -16,6 +16,24 @@ static TIMER_LIST: LazyInit<SpinNoIrqLock<TimerList>> = LazyInit::new();
 fn update_deadline(deadline_ns: u64) {
     NEXT_DEADLINE.store(deadline_ns, Ordering::Release);
     set_oneshot_timer(deadline_ns);
+}
+
+pub const fn ticks_to_nanos(ticks: u64, freq_hz: u64) -> u64 {
+    // FIXME: speedup
+    ((ticks as u128) * 1_000_000_000 / freq_hz as u128) as u64
+}
+
+pub const fn nanos_to_ticks(nanos: u64, freq_hz: u64) -> u64 {
+    // FIXME: speedup
+    (nanos as u128 * freq_hz as u128 / 1_000_000_000) as u64
+}
+
+pub fn current_time_nanos() -> u64 {
+    ticks_to_nanos(current_ticks(), frequency_hz())
+}
+
+pub fn current_time() -> TimeValue {
+    TimeValue::from_nanos(current_time_nanos())
 }
 
 pub fn init() {

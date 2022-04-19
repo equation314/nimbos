@@ -4,6 +4,7 @@ cfg_if! {
         mod i8259_pic;
         use apic as imp;
         pub use apic::local_apic;
+        pub use apic::vectors::*;
     } else if #[cfg(target_arch = "aarch64")] {
         mod gicv2;
         use gicv2 as imp;

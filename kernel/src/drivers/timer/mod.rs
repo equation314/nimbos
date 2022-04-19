@@ -1,7 +1,9 @@
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
-        mod x86_lapic;
-        use x86_lapic as imp;
+        mod x86_hpet;
+        mod x86_tsc;
+        mod x86_common;
+        use x86_common as imp;
     } else if #[cfg(target_arch = "aarch64")] {
         mod arm_generic_timer;
         use arm_generic_timer as imp;
@@ -9,4 +11,4 @@ cfg_if! {
 }
 
 pub(super) use self::imp::init;
-pub use self::imp::{current_time, current_time_nanos, set_oneshot_timer};
+pub use self::imp::{current_ticks, frequency_hz, set_oneshot_timer};
