@@ -2,7 +2,6 @@ use memoffset::offset_of;
 use x86_64::structures::tss::TaskStateSegment;
 
 use super::gdt::{GdtStruct, TSS_SELECTOR};
-use super::idt::IDT;
 use crate::mm::VirtAddr;
 use crate::percpu::PERCPU_ARCH_OFFSET;
 
@@ -31,12 +30,10 @@ impl ArchPerCpu {
     }
 
     pub fn init(&'static mut self, cpu_id: usize) {
-        println!("Loading IDT and GDT for CPU {}...", cpu_id);
-        IDT.load();
+        println!("Loading GDT for CPU {}...", cpu_id);
         self.gdt.init(&self.tss);
         self.gdt.load();
         self.gdt.load_tss(TSS_SELECTOR);
-        super::syscall::init_percpu();
     }
 
     pub fn kernel_stack_top(&self) -> VirtAddr {

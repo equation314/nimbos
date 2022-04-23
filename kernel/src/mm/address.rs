@@ -3,10 +3,7 @@
 use core::fmt;
 
 use super::PAGE_SIZE;
-use crate::config::PHYS_VIRT_OFFSET;
-
-const PA_1TB_BITS: usize = 40;
-const VA_MAX_BITS: usize = 48;
+use crate::config::{PA_MAX_BITS, PHYS_VIRT_OFFSET, VA_MAX_BITS};
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(usize);
@@ -35,7 +32,7 @@ impl fmt::Debug for VirtAddr {
 }
 
 impl PhysAddr {
-    pub const MAX: usize = (1 << PA_1TB_BITS) - 1;
+    pub const MAX: usize = (1 << PA_MAX_BITS) - 1;
 
     pub const fn new(pa: usize) -> Self {
         Self(pa & Self::MAX)
@@ -62,12 +59,18 @@ impl PhysAddr {
 
 impl VirtAddr {
     pub const fn new(va: usize) -> Self {
-        if cfg!(target_arch = "x86_64") {
-            let top_bits = va >> (VA_MAX_BITS - 1);
-            if top_bits != 0 && top_bits != 0x1ffff {
+        if cfg!(any(
+            target_arch = "x86_64",
+            target_arch = "riscv32",
+            target_arch = "riscv64"
+        )) {
+            // Top bits must be sign extended
+            let top_mask = usize::MAX << (VA_MAX_BITS - 1);
+            if (va & top_mask) != 0 && (va & top_mask) != top_mask {
                 panic!("invalid VA!")
             }
         } else if cfg!(target_arch = "aarch64") {
+            // Top 16 bits must be all 0s or all 1s.
             let top_bits = va >> VA_MAX_BITS;
             if top_bits != 0 && top_bits != 0xffff {
                 panic!("invalid VA!")
@@ -75,6 +78,20 @@ impl VirtAddr {
         }
         Self(va)
     }
+    pub const fn new_extended(va: usize) -> Self {
+        if cfg!(any(
+            target_arch = "x86_64",
+            target_arch = "riscv32",
+            target_arch = "riscv64"
+        )) {
+            let top_mask = usize::MAX << (VA_MAX_BITS - 1);
+            if (va & top_mask) != 0 {
+                return Self(va | top_mask);
+            }
+        }
+        Self(va)
+    }
+
     pub const fn as_usize(&self) -> usize {
         self.0
     }

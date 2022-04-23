@@ -3,6 +3,21 @@ use core::{fmt::Debug, marker::PhantomData};
 
 use super::{MapArea, MemFlags, PhysAddr, PhysFrame, VirtAddr, PAGE_SIZE};
 
+pub trait PageTableLevels: Sync + Send {
+    const LEVELS: usize;
+}
+
+pub struct PageTableLevels3;
+pub struct PageTableLevels4;
+
+impl PageTableLevels for PageTableLevels3 {
+    const LEVELS: usize = 3;
+}
+
+impl PageTableLevels for PageTableLevels4 {
+    const LEVELS: usize = 4;
+}
+
 pub trait GenericPTE: Debug + Clone + Copy + Sync + Send + Sized {
     // Create a page table entry point to a terminate page or block.
     fn new_page(paddr: PhysAddr, flags: MemFlags, is_block: bool) -> Self;
@@ -17,19 +32,20 @@ pub trait GenericPTE: Debug + Clone + Copy + Sync + Send + Sized {
     fn is_unused(&self) -> bool;
     /// Returns whether this entry flag indicates present.
     fn is_present(&self) -> bool;
-    /// Returns whether this entry maps to a huge frame.
+    /// For non-last level translation, returns whether this entry maps to a
+    /// huge frame.
     fn is_block(&self) -> bool;
     /// Set this entry to zero.
     fn clear(&mut self);
 }
 
-pub struct PageTableImpl<PTE: GenericPTE> {
+pub struct PageTableImpl<L: PageTableLevels, PTE: GenericPTE> {
     root_paddr: PhysAddr,
     intrm_tables: Vec<PhysFrame>,
-    _phantom: PhantomData<PTE>,
+    _phantom: PhantomData<(L, PTE)>,
 }
 
-impl<PTE: GenericPTE> PageTableImpl<PTE> {
+impl<L: PageTableLevels, PTE: GenericPTE> PageTableImpl<L, PTE> {
     pub fn new() -> Self {
         let root_frame = PhysFrame::alloc_zero().unwrap();
         Self {
@@ -55,8 +71,15 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
                     ENTRY_COUNT,
                 )
             };
-            let start_idx = p4_index(start);
-            let end_idx = p4_index(VirtAddr::new(end.as_usize() - 1)) + 1;
+            let index_fn = if L::LEVELS == 3 {
+                p3_index
+            } else if L::LEVELS == 4 {
+                p4_index
+            } else {
+                unreachable!()
+            };
+            let start_idx = index_fn(start);
+            let end_idx = index_fn(VirtAddr::new(end.as_usize() - 1)) + 1;
             dst_table[start_idx..end_idx].copy_from_slice(&src_table[start_idx..end_idx]);
         }
         pt
@@ -136,13 +159,13 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
                 for _ in 0..level {
                     print!("  ");
                 }
-                println!("[{} - {:x}], {:08x?}: {:x?}", level, idx, vaddr, entry);
+                println!("[{} - {:x}], 0x{:08x?}: {:x?}", level, idx, vaddr, entry);
             },
         );
     }
 }
 
-impl<PTE: GenericPTE> PageTableImpl<PTE> {
+impl<L: PageTableLevels, PTE: GenericPTE> PageTableImpl<L, PTE> {
     fn alloc_intrm_table(&mut self) -> PhysAddr {
         let frame = PhysFrame::alloc_zero().unwrap();
         let paddr = frame.start_paddr();
@@ -151,10 +174,15 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
     }
 
     fn get_entry_mut(&self, vaddr: VirtAddr) -> Option<&mut PTE> {
-        let p4 = table_of_mut(self.root_paddr());
-        let p4e = &mut p4[p4_index(vaddr)];
-
-        let p3 = next_table_mut(p4e)?;
+        let p3 = if L::LEVELS == 3 {
+            table_of_mut(self.root_paddr())
+        } else if L::LEVELS == 4 {
+            let p4 = table_of_mut(self.root_paddr());
+            let p4e = &mut p4[p4_index(vaddr)];
+            next_table_mut(p4e)?
+        } else {
+            unreachable!()
+        };
         let p3e = &mut p3[p3_index(vaddr)];
 
         let p2 = next_table_mut(p3e)?;
@@ -166,10 +194,15 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
     }
 
     fn get_entry_mut_or_create(&mut self, vaddr: VirtAddr) -> Option<&mut PTE> {
-        let p4 = table_of_mut(self.root_paddr());
-        let p4e = &mut p4[p4_index(vaddr)];
-
-        let p3 = next_table_mut_or_create(p4e, || self.alloc_intrm_table())?;
+        let p3 = if L::LEVELS == 3 {
+            table_of_mut(self.root_paddr())
+        } else if L::LEVELS == 4 {
+            let p4 = table_of_mut(self.root_paddr());
+            let p4e = &mut p4[p4_index(vaddr)];
+            next_table_mut_or_create(p4e, || self.alloc_intrm_table())?
+        } else {
+            unreachable!()
+        };
         let p3e = &mut p3[p3_index(vaddr)];
 
         let p2 = next_table_mut_or_create(p3e, || self.alloc_intrm_table())?;
@@ -190,10 +223,11 @@ impl<PTE: GenericPTE> PageTableImpl<PTE> {
     ) {
         let mut n = 0;
         for (i, entry) in table.iter().enumerate() {
-            let vaddr = start_vaddr + (i << (12 + (3 - level) * 9));
+            let vaddr = start_vaddr + (i << (12 + (L::LEVELS - 1 - level) * 9));
+            let vaddr = VirtAddr::new_extended(vaddr).as_usize();
             if entry.is_present() {
                 func(level, i, vaddr, entry);
-                if level < 3 && !entry.is_block() {
+                if level < L::LEVELS - 1 && !entry.is_block() {
                     let table_entry = next_table_mut(entry).unwrap();
                     self.walk(table_entry, level + 1, vaddr, limit, func);
                 }

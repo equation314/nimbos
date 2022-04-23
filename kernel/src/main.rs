@@ -79,6 +79,7 @@ pub fn rust_main() -> ! {
     info!("Logging is enabled.");
 
     arch::init();
+    arch::init_percpu();
     percpu::init_percpu_early();
 
     mm::init();

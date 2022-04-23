@@ -2,7 +2,8 @@ use core::fmt;
 
 use x86_64::structures::paging::page_table::PageTableFlags as PTF;
 
-use crate::mm::{GenericPTE, MemFlags, PageTableImpl, PhysAddr};
+use crate::mm::paging::{GenericPTE, PageTableImpl, PageTableLevels4};
+use crate::mm::{MemFlags, PhysAddr};
 
 impl From<PTF> for MemFlags {
     fn from(f: PTF) -> Self {
@@ -98,4 +99,4 @@ impl fmt::Debug for PageTableEntry {
     }
 }
 
-pub type PageTable = PageTableImpl<PageTableEntry>;
+pub type PageTable = PageTableImpl<PageTableLevels4, PageTableEntry>;

@@ -46,7 +46,7 @@ pub fn init() {
     m.spawn(ROOT_TASK.clone());
     m.spawn(Task::new_kernel(test_kernel_task, 0xdead));
     m.spawn(Task::new_kernel(test_kernel_task, 0xbeef));
-    m.spawn(Task::new_user("user_shell"));
+    // m.spawn(Task::new_user("user_shell"));
 
     TASK_INITED.store(true, Ordering::SeqCst);
 }

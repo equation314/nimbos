@@ -1,12 +1,10 @@
-use core::arch::asm;
-
 use cortex_a::{asm, asm::barrier, registers::*};
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 
 use crate::arch::instructions;
 use crate::arch::PageTableEntry;
 use crate::config::BOOT_KERNEL_STACK_SIZE;
-use crate::mm::{GenericPTE, MemFlags, PhysAddr};
+use crate::mm::{paging::GenericPTE, MemFlags, PhysAddr};
 
 #[link_section = ".bss.stack"]
 static mut BOOT_STACK: [u8; BOOT_KERNEL_STACK_SIZE] = [0; BOOT_KERNEL_STACK_SIZE];
@@ -95,16 +93,16 @@ unsafe fn init_mmu() {
 unsafe fn init_boot_page_table() {
     // 0x0000_0000_0000 ~ 0x0080_0000_0000, table
     BOOT_PT_L0[0] = PageTableEntry::new_table(PhysAddr::new(BOOT_PT_L1.as_ptr() as usize));
-    // 0x0000_0000_0000..0x0000_4000_0000, block, device memory
+    // 0x0000_0000_0000..0x0000_4000_0000, 1G block, device memory
     BOOT_PT_L1[0] = PageTableEntry::new_page(
         PhysAddr::new(0),
         MemFlags::READ | MemFlags::WRITE | MemFlags::DEVICE,
         true,
     );
-    // 0x0000_4000_0000..0x0000_8000_0000, block, normal memory
+    // 0x0000_4000_0000..0x0000_8000_0000, 1G block, normal memory
     BOOT_PT_L1[1] = PageTableEntry::new_page(
         PhysAddr::new(0x4000_0000),
-        MemFlags::READ | MemFlags::WRITE | MemFlags::READ | MemFlags::EXECUTE,
+        MemFlags::READ | MemFlags::WRITE | MemFlags::EXECUTE,
         true,
     );
 }
@@ -114,7 +112,7 @@ unsafe fn init_boot_page_table() {
 #[link_section = ".text.boot"]
 unsafe extern "C" fn _start() -> ! {
     // PC = 0x4008_0000
-    asm!("
+    core::arch::asm!("
         adrp    x8, boot_stack_top
         mov     sp, x8
         bl      {switch_to_el1}
@@ -123,7 +121,8 @@ unsafe extern "C" fn _start() -> ! {
         ldr     x8, =boot_stack_top
         mov     sp, x8
         ldr     x8, ={rust_main}
-        br      x8",
+        blr     x8
+        b      .",
         switch_to_el1 = sym switch_to_el1,
         init_boot_page_table = sym init_boot_page_table,
         init_mmu = sym init_mmu,

@@ -15,6 +15,9 @@ ifeq ($(ARCH), x86_64)
 else ifeq ($(ARCH), aarch64)
   ACCEL ?= off
   PLATFORM ?= qemu-virt-arm
+else ifeq ($(ARCH), riscv64)
+  ACCEL ?= off
+  PLATFORM ?= qemu-virt-riscv
 endif
 
 export ARCH
@@ -67,6 +70,11 @@ else ifeq ($(ARCH), aarch64)
   qemu_args += \
     -cpu cortex-a72 \
     -machine virt \
+    -kernel $(kernel_bin)
+else ifeq ($(ARCH), riscv64)
+  qemu_args += \
+    -machine virt \
+    -bios default \
     -kernel $(kernel_bin)
 endif
 

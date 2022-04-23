@@ -8,6 +8,9 @@ cfg_if! {
     } else if #[cfg(target_arch = "aarch64")] {
         mod gicv2;
         use gicv2 as imp;
+    } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
+        mod plic;
+        use plic as imp;
     }
 }
 

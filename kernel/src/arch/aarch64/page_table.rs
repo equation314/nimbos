@@ -1,6 +1,7 @@
 use core::fmt;
 
-use crate::mm::{GenericPTE, MemFlags, PageTableImpl, PhysAddr, PAGE_SIZE};
+use crate::mm::paging::{GenericPTE, PageTableImpl, PageTableLevels4};
+use crate::mm::{MemFlags, PhysAddr, PAGE_SIZE};
 
 bitflags::bitflags! {
     /// Memory attribute fields in the VMSAv8-64 translation table format descriptors.
@@ -187,4 +188,4 @@ impl fmt::Debug for PageTableEntry {
     }
 }
 
-pub type PageTable = PageTableImpl<PageTableEntry>;
+pub type PageTable = PageTableImpl<PageTableLevels4, PageTableEntry>;

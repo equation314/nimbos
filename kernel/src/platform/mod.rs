@@ -5,6 +5,9 @@ cfg_if! {
     } else if #[cfg(feature = "platform-qemu-virt-arm")] {
         mod qemu_virt_arm;
         pub use self::qemu_virt_arm::*;
+    } else if #[cfg(feature = "platform-qemu-virt-riscv")] {
+        mod qemu_virt_riscv;
+        pub use self::qemu_virt_riscv::*;
     }
 }
 

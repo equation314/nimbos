@@ -45,12 +45,14 @@ pub unsafe fn set_user_page_table_root(root_paddr: usize) {
     }
 }
 
+#[inline]
 pub fn flush_tlb_all() {
     unsafe { cr3_write(cr3()) }
 }
 
 pub fn flush_icache_all() {}
 
+#[inline]
 pub fn wait_for_ints() {
     if !irqs_disabled() {
         x86_64::instructions::hlt();

@@ -2,13 +2,13 @@ mod address;
 mod frame_allocator;
 mod heap_allocator;
 mod memory_set;
-mod paging;
 mod uaccess;
+
+pub mod paging;
 
 pub use address::{PhysAddr, VirtAddr};
 pub use frame_allocator::PhysFrame;
 pub use memory_set::{kernel_aspace, MapArea, MemorySet};
-pub use paging::{GenericPTE, PageTableImpl};
 pub use uaccess::{UserInOutPtr, UserInPtr, UserOutPtr};
 
 pub const PAGE_SIZE: usize = 0x1000;

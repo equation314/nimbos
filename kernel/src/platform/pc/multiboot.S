@@ -73,7 +73,8 @@ entry64:
     // set stack and jump to rust_main
     movabs  rsp, offset boot_stack_top
     movabs  rax, offset rust_main
-    jmp     rax
+    call    rax
+1:  jmp     1b
 
 .section .rodata
 .balign 8

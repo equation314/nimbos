@@ -14,6 +14,8 @@ fn main() {
         "pc-rvm"
     } else if cfg!(feature = "platform-qemu-virt-arm") {
         "qemu-virt-arm"
+    } else if cfg!(feature = "platform-qemu-virt-riscv") {
+        "qemu-virt-riscv"
     } else {
         panic!("Unsupported platform!");
     };

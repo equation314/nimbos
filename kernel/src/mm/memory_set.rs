@@ -182,6 +182,8 @@ impl MemorySet {
             header::Machine::X86_64
         } else if cfg!(target_arch = "aarch64") {
             header::Machine::AArch64
+        } else if cfg!(target_arch = "riscv64") {
+            header::Machine::RISC_V
         } else {
             panic!("Unsupported architecture!");
         };
