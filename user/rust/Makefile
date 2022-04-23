@@ -7,6 +7,8 @@ ifeq ($(ARCH), x86_64)
 else ifeq ($(ARCH), aarch64)
   target := aarch64-unknown-none
   rust_flags := -C target-feature=-neon,-fp
+else ifeq ($(ARCH), riscv64)
+  target := riscv64imac-unknown-none-elf
 else
   $(error Unsupported architecture "$(ARCH)")
 endif
