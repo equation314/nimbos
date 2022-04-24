@@ -1,15 +1,19 @@
-use core::arch::{asm, global_asm};
+use core::arch::asm;
+
+use riscv::register::{sepc, sscratch};
 
 use crate::arch::instructions;
 use crate::mm::{PhysAddr, VirtAddr};
+
+include_asm_marcos!();
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct GeneralRegisters {
     pub ra: usize,
     pub sp: usize,
-    pub gp: usize,
-    pub tp: usize,
+    pub gp: usize, // only valid for user traps
+    pub tp: usize, // only valid for user traps
     pub t0: usize,
     pub t1: usize,
     pub t2: usize,
@@ -54,6 +58,7 @@ impl TrapFrame {
         Self {
             regs: GeneralRegisters {
                 a0: arg0,
+                sp: ustack_top.as_usize(),
                 ..Default::default()
             },
             sepc: entry.as_usize(),
@@ -70,7 +75,35 @@ impl TrapFrame {
     }
 
     pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
-        unimplemented!()
+        info!(
+            "user task start: entry={:#x}, ustack={:#x}, kstack={:#x}",
+            self.sepc,
+            self.regs.sp,
+            kstack_top.as_usize(),
+        );
+        instructions::disable_irqs();
+        sscratch::write(kstack_top.as_usize());
+        sepc::write(self.sepc);
+        let kernel_tp_addr = kstack_top.as_usize() - core::mem::size_of::<TrapFrame>()
+            + memoffset::offset_of!(GeneralRegisters, tp);
+        asm!("
+            mv      sp, {tf}
+
+            LDR     t0, sp, 32
+            csrw    sstatus, t0
+
+            STR     tp, {kernel_tp_addr}, 0
+            LDR     gp, sp, 2
+            LDR     tp, sp, 3
+
+            POP_GENERAL_REGS
+            LDR     sp, sp, 1
+
+            sret",
+            tf = in(reg) self,
+            kernel_tp_addr = in(reg) kernel_tp_addr,
+            options(noreturn),
+        )
     }
 }
 
@@ -121,30 +154,6 @@ impl TaskContext {
         }
     }
 }
-
-#[cfg(target_arch = "riscv32")]
-global_asm!(
-    r"
-    .equ XLENB, 4
-    .macro LDR rd, rs, off
-        lw \rd, \off*XLENB(\rs)
-    .endm
-    .macro STR rs2, rs1, off
-        sw \rs2, \off*XLENB(\rs1)
-    .endm"
-);
-
-#[cfg(target_arch = "riscv64")]
-global_asm!(
-    r"
-    .equ XLENB, 8
-    .macro LDR rd, rs, off
-        ld \rd, \off*XLENB(\rs)
-    .endm
-    .macro STR rs2, rs1, off
-        sd \rs2, \off*XLENB(\rs1)
-    .endm"
-);
 
 #[naked]
 unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {

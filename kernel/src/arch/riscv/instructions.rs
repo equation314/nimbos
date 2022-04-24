@@ -5,7 +5,7 @@ use riscv::register::sstatus;
 
 #[inline]
 pub fn enable_irqs() {
-    // unsafe { sstatus::set_sie() }
+    unsafe { sstatus::set_sie() }
 }
 
 #[inline]

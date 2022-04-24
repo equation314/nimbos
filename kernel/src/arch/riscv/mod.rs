@@ -1,3 +1,6 @@
+#[macro_use]
+mod macros;
+
 mod context;
 mod page_table;
 mod percpu;
