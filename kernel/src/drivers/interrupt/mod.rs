@@ -9,8 +9,9 @@ cfg_if! {
         mod gicv2;
         use gicv2 as imp;
     } else if #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))] {
-        mod plic;
-        use plic as imp;
+        mod riscv_intc;
+        use riscv_intc as imp;
+        pub use riscv_intc::ScauseIntCode;
     }
 }
 

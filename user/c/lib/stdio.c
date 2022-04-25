@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -60,7 +61,8 @@ static int out(int f, const char *s, size_t l)
 
 static void printint(long long value, int base, int sign)
 {
-    char buf[16 + 1];
+    const int buf_size = 20;
+    char buf[buf_size + 1];
     int i;
     uint64_t x;
 
@@ -69,18 +71,17 @@ static void printint(long long value, int base, int sign)
     else
         x = value;
 
-    buf[16] = 0;
-    i = 15;
+    buf[buf_size] = 0;
+    i = buf_size;
+
     do {
-        buf[i--] = digits[x % base];
+        buf[--i] = digits[x % base];
     } while ((x /= base) != 0);
 
     if (sign)
-        buf[i--] = '-';
-    i++;
-    if (i < 0)
-        puts("printint error");
-    out(stdout, buf + i, 16 - i);
+        buf[--i] = '-';
+    assert(i >= 0);
+    out(stdout, buf + i, buf_size - i);
 }
 
 static void printptr(uint64_t value)

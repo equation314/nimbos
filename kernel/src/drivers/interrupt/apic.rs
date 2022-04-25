@@ -5,6 +5,7 @@
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode};
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder};
 
+use self::vectors::*;
 use crate::mm::PhysAddr;
 use crate::sync::{LazyInit, PerCpuData, SpinNoIrqLock};
 use crate::utils::irq_handler::{IrqHandler, IrqHandlerTable};
@@ -17,8 +18,6 @@ pub mod vectors {
     pub const APIC_SPURIOUS_VECTOR: usize = 0xf1;
     pub const APIC_ERROR_VECTOR: usize = 0xf2;
 }
-
-use self::vectors::*;
 
 const IRQ_COUNT: usize = 256;
 

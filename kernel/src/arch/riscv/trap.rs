@@ -47,7 +47,7 @@ fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
                 );
             }
         }
-        Trap::Interrupt(_) => task::handle_irq(scause.code()),
+        Trap::Interrupt(_) => task::handle_irq(scause.bits()),
         _ => {
             panic!(
                 "Unsupported trap {:?} @ {:#x}:\n{:#x?}",
