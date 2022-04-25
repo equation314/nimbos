@@ -24,8 +24,8 @@ fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
     trace!("trap {:?} @ {:#x}: {:#x?}", scause.cause(), tf.sepc, tf);
     match scause.cause() {
         Trap::Exception(E::UserEnvCall) => {
-            tf.regs.a0 = syscall(tf, tf.regs.a7, tf.regs.a0, tf.regs.a1, tf.regs.a2) as _;
             tf.sepc += 4;
+            tf.regs.a0 = syscall(tf, tf.regs.a7, tf.regs.a0, tf.regs.a1, tf.regs.a2) as _;
         }
         Trap::Exception(E::LoadPageFault)
         | Trap::Exception(E::StorePageFault)

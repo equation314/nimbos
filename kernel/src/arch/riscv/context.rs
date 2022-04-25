@@ -67,11 +67,16 @@ impl TrapFrame {
     }
 
     pub const fn new_clone(&self, ustack_top: VirtAddr) -> Self {
-        unimplemented!()
+        let mut tf = *self;
+        tf.regs.sp = ustack_top.as_usize();
+        tf.regs.a0 = 0; // for child thread, clone returns 0
+        tf
     }
 
     pub const fn new_fork(&self) -> Self {
-        unimplemented!()
+        let mut tf = *self;
+        tf.regs.a0 = 0; // for child process, fork returns 0
+        tf
     }
 
     pub unsafe fn exec(&self, kstack_top: VirtAddr) -> ! {
