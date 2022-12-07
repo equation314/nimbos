@@ -5,8 +5,7 @@ ifeq ($(ARCH), x86_64)
   target := x86_64-unknown-none
   rust_flags := -C relocation-model=static
 else ifeq ($(ARCH), aarch64)
-  target := aarch64-unknown-none
-  rust_flags := -C target-feature=-neon,-fp
+  target := aarch64-unknown-none-softfloat
 else ifeq ($(ARCH), riscv64)
   target := riscv64imac-unknown-none-elf
 else

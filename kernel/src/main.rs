@@ -1,9 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
-#![feature(asm_sym, asm_const, naked_functions)]
+#![feature(asm_const, naked_functions)]
 #![feature(panic_info_message, alloc_error_handler)]
-#![feature(const_ptr_offset_from, const_refs_to_cell)]
-#![feature(const_fn_fn_ptr_basics)]
+#![feature(const_refs_to_cell)]
 #![feature(const_maybe_uninit_zeroed)]
 #![feature(get_mut_unchecked)]
 

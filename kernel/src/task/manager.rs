@@ -48,7 +48,7 @@ impl TaskManager {
 
         unsafe {
             PerCpu::set_current_task(next_task);
-            (&mut *curr_ctx_ptr).switch_to(&*next_ctx_ptr);
+            (*curr_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
     }
 

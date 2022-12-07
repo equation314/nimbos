@@ -150,7 +150,7 @@ impl<L: PageTableLevels, PTE: GenericPTE> PageTableImpl<L, PTE> {
         let _lock = LOCK.lock();
 
         println!("Root: {:x?}", self.root_paddr());
-        self.walk(
+        Self::walk(
             table_of(self.root_paddr()),
             0,
             0,
@@ -214,7 +214,6 @@ impl<L: PageTableLevels, PTE: GenericPTE> PageTableImpl<L, PTE> {
     }
 
     fn walk(
-        &self,
         table: &[PTE],
         level: usize,
         start_vaddr: usize,
@@ -229,7 +228,7 @@ impl<L: PageTableLevels, PTE: GenericPTE> PageTableImpl<L, PTE> {
                 func(level, i, vaddr, entry);
                 if level < L::LEVELS - 1 && !entry.is_block() {
                     let table_entry = next_table_mut(entry).unwrap();
-                    self.walk(table_entry, level + 1, vaddr, limit, func);
+                    Self::walk(table_entry, level + 1, vaddr, limit, func);
                 }
                 n += 1;
                 if n >= limit {
