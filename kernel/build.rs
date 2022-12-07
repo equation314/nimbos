@@ -17,6 +17,8 @@ fn main() {
         "qemu-virt-arm"
     } else if cfg!(feature = "platform-qemu-virt-riscv") {
         "qemu-virt-riscv"
+    } else if cfg!(feature = "platform-rvm-guest-x86_64") {
+        "rvm-guest-x86_64"
     } else {
         panic!("Unsupported platform!");
     };

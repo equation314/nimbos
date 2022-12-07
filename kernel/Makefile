@@ -3,12 +3,15 @@ ARCH ?= x86_64
 MODE ?= release
 LOG ?= warn
 RVM ?= off
+GUEST ?= off
 
 # Platform
 ifeq ($(ARCH), x86_64)
   ACCEL ?= on
   ifeq ($(RVM), on)
     PLATFORM ?= pc-rvm
+  else ifeq ($(GUEST), on)
+    PLATFORM ?= rvm-guest-x86_64
   else
     PLATFORM ?= pc
   endif

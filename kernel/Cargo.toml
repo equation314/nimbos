@@ -12,6 +12,7 @@ platform-pc = []
 platform-pc-rvm = []
 platform-qemu-virt-arm = []
 platform-qemu-virt-riscv = []
+platform-rvm-guest-x86_64 = []
 default = ["platform-pc"]
 
 [dependencies]
